@@ -1,0 +1,16 @@
+# Secretos
+.env
+**/.env
+!**/.env.example
+
+# Dependencias y builds
+node_modules/
+laravel/vendor/
+laravel/public/build/
+laravel/public/hot
+laravel/storage/*.key
+
+# Sistema / editor
+.DS_Store
+.vscode/
+.idea/
