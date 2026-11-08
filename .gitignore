@@ -15,7 +15,9 @@ laravel/storage/*.key
 .vscode/
 .idea/
 
-# Claude Code 
-local.claude/settings.local.json
+# Claude Code
+.claude/settings.local.json
+.claude/bloqueos.log
+
 # SQLite que crea Laravel por omisión (no se usa)
 laravel/database/database.sqlite
