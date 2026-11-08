@@ -22,8 +22,11 @@ function puertoLibre() {
 
 // MySQL inalcanzable a propósito (puerto 1 de localhost): el servidor debe arrancar igual (B1-02)
 // y no debe mostrar las credenciales en sus mensajes.
+// Desde B2, JWT_SECRET es obligatorio: se usa un secreto de prueba de 40 caracteres.
+const SECRETO_PRUEBA = 'secreto_de_prueba_b2_no_usar_en_prod_40c';
 const BD_FALSA = {
   DB_HOST: '127.0.0.1', DB_PORT: '1', DB_NAME: 'bd_prueba', DB_USER: 'usuario_prueba_b1', DB_PASSWORD: 'clave_prueba_b1',
+  JWT_SECRET: SECRETO_PRUEBA,
 };
 
 /**
@@ -148,6 +151,45 @@ describe('B1-01 servidor Express', () => {
       assert.ok(!r.salida.includes(BD_FALSA.DB_PASSWORD));
     } finally {
       ocupado.close();
+    }
+  });
+});
+
+describe('S2 configuración de JWT (B2)', () => {
+  test('sin JWT_SECRET o con menos de 32 caracteres termina con código 1 sin mostrar el valor', async () => {
+    const puerto = await puertoLibre();
+    const sinSecreto = { ...BD_FALSA, PORT: String(puerto), CORS_ORIGIN: 'http://127.0.0.1:5500' };
+    delete sinSecreto.JWT_SECRET;
+    const r1 = await arrancar(sinSecreto);
+    if (r1.codigo === null) await detener(r1.proceso);
+    assert.equal(r1.codigo, 1);
+    assert.match(r1.salida, /JWT_SECRET es obligatorio/);
+
+    const corto = 'secreto_corto_de_31_caracteres!';
+    assert.equal(corto.length, 31);
+    const r2 = await arrancar({ ...BD_FALSA, PORT: String(puerto), CORS_ORIGIN: 'http://127.0.0.1:5500', JWT_SECRET: corto });
+    if (r2.codigo === null) await detener(r2.proceso);
+    assert.equal(r2.codigo, 1);
+    assert.match(r2.salida, /JWT_SECRET debe tener al menos 32 caracteres/);
+    assert.ok(!r2.salida.includes(corto), 'la salida revela el secreto');
+  });
+
+  test('JWT_EXPIRES_IN con formato no válido termina con código 1', async () => {
+    const puerto = await puertoLibre();
+    const r = await arrancar({ ...BD_FALSA, PORT: String(puerto), CORS_ORIGIN: 'http://127.0.0.1:5500', JWT_EXPIRES_IN: 'ocho horas' });
+    if (r.codigo === null) await detener(r.proceso);
+    assert.equal(r.codigo, 1);
+    assert.match(r.salida, /JWT_EXPIRES_IN debe ser/);
+  });
+
+  test('el secreto de prueba no aparece en la salida del arranque correcto', async () => {
+    const puerto = await puertoLibre();
+    const r = await arrancar({ ...BD_FALSA, PORT: String(puerto), CORS_ORIGIN: 'http://127.0.0.1:5500', JWT_EXPIRES_IN: '8h' });
+    try {
+      assert.equal(r.codigo, null, r.salida);
+      assert.ok(!r.salida.includes(SECRETO_PRUEBA));
+    } finally {
+      await detener(r.proceso);
     }
   });
 });

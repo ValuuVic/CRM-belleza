@@ -15,6 +15,14 @@ function configuracionInvalida() {
   if (!origen) problemas.push('CORS_ORIGIN es obligatorio');
   else if (origen.includes('*')) problemas.push('CORS_ORIGIN no puede ser "*"');
   else if (!esOrigenValido(origen)) problemas.push('CORS_ORIGIN debe ser un origen http(s) exacto, como http://127.0.0.1:5500');
+  // JWT (S2, CLAUDE.md §7): secreto obligatorio de al menos 32 caracteres; nunca se muestra.
+  const secreto = process.env.JWT_SECRET ?? '';
+  if (!secreto) problemas.push('JWT_SECRET es obligatorio');
+  else if (secreto.length < 32) problemas.push('JWT_SECRET debe tener al menos 32 caracteres');
+  const expiracion = process.env.JWT_EXPIRES_IN;
+  if (expiracion !== undefined && expiracion !== '' && !/^\d+\s?(ms|s|m|h|d|w|y)?$/i.test(expiracion.trim())) {
+    problemas.push('JWT_EXPIRES_IN debe ser un número de segundos o una duración como 8h');
+  }
   return problemas;
 }
 
