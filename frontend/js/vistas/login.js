@@ -2,18 +2,7 @@
 // La contraseña nunca se guarda en el estado ni en el navegador: solo se lee del formulario al enviarlo.
 
 import { escaparHtml } from '../util/escape.js';
-
-function campo({ id, nombre, tipo, etiqueta, valor = '', error, autocompletar, cargando }) {
-  const invalido = error ? ' is-invalid' : '';
-  return `
-    <div class="mb-3">
-      <label for="${id}" class="form-label">${etiqueta}</label>
-      <input id="${id}" name="${nombre}" type="${tipo}" class="form-control${invalido}"
-             value="${escaparHtml(valor)}" autocomplete="${autocompletar}" required
-             ${error ? `aria-invalid="true" aria-describedby="${id}-error"` : ''} ${cargando ? 'disabled' : ''}>
-      ${error ? `<div id="${id}-error" class="invalid-feedback">${escaparHtml(error)}</div>` : ''}
-    </div>`;
-}
+import { campo } from './campo.js'; // compartido con el formulario de clientes (B3)
 
 export function renderLogin(estado) {
   const { cargando, correo, errores, mensaje } = estado.login;

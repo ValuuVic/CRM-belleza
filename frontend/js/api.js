@@ -51,5 +51,25 @@ export async function pedir(ruta, { metodo = 'GET', cuerpo, protegida = true } =
 /** POST /api/auth/login con { correo, clave }. No es una ruta protegida: un 401 es "credenciales incorrectas". */
 export const iniciarSesion = (correo, clave) => pedir('/auth/login', { metodo: 'POST', cuerpo: { correo, clave }, protegida: false });
 
-/** GET /api/clientes: array plano con la cartera del vendedor. */
-export const obtenerClientes = () => pedir('/clientes');
+/** GET /api/clientes?q=: array plano con la cartera del vendedor, filtrada en el servidor (B3-03). */
+export function obtenerClientes(q = '') {
+  const texto = String(q ?? '').trim();
+  return pedir(texto ? `/clientes?${new URLSearchParams({ q: texto })}` : '/clientes');
+}
+
+const rutaCliente = (id) => `/clientes/${encodeURIComponent(String(id))}`;
+
+/** GET /api/clientes/:id: detalle de un cliente propio. */
+export const obtenerCliente = (id) => pedir(rutaCliente(id));
+
+/** GET /api/clientes/disponibles: [{ id, nombre }]. */
+export const obtenerDisponibles = () => pedir('/clientes/disponibles');
+
+/** POST /api/clientes con { nombre, nit, telefono, correo? }. */
+export const crearCliente = (datos) => pedir('/clientes', { metodo: 'POST', cuerpo: datos });
+
+/** PATCH /api/clientes/:id con los campos modificados. */
+export const actualizarCliente = (id, cambios) => pedir(rutaCliente(id), { metodo: 'PATCH', cuerpo: cambios });
+
+/** POST /api/clientes/:id/tomar (sin cuerpo). */
+export const tomarCliente = (id) => pedir(`${rutaCliente(id)}/tomar`, { metodo: 'POST' });

@@ -4,7 +4,8 @@
 // - Delegación de eventos en `document` (formularios y botones con data-accion).
 
 import { obtenerEstado, actualizar, suscribir, guardarSesion, cerrarSesion } from './estado.js';
-import { iniciarSesion, obtenerClientes } from './api.js';
+import { iniciarSesion } from './api.js';
+import * as cartera from './acciones-cartera.js';
 import { escaparHtml } from './util/escape.js';
 import { renderLogin } from './vistas/login.js';
 import { renderCartera } from './vistas/cartera.js';
@@ -61,17 +62,7 @@ function render(estado) {
 
 // ---------- Acciones ----------
 
-async function cargarCartera() {
-  actualizar((e) => ({ cartera: { ...e.cartera, cargando: true, error: null } }));
-  const r = await obtenerClientes();
-  if (r.status === 401) return; // api.js ya cerró la sesión y redirigió (B2-14)
-  if (r.ok && Array.isArray(r.datos)) {
-    actualizar({ cartera: { cargando: false, clientes: r.datos, error: null, cargada: true } });
-  } else {
-    const error = r.datos?.error ?? 'No se pudo cargar la cartera.';
-    actualizar((e) => ({ cartera: { ...e.cartera, cargando: false, error } }));
-  }
-}
+// Las acciones de la cartera (B3) están en acciones-cartera.js; un 401 lo gestiona api.js (B2-14).
 
 async function enviarLogin(formulario) {
   const datos = new FormData(formulario);
@@ -117,25 +108,45 @@ function alCambiarRuta() {
   }
 
   actualizar({ ruta });
-  if (ruta === '#/cartera') cargarCartera();
+  if (ruta === '#/cartera') cartera.cargarCartera();
 }
 
 // ---------- Eventos (delegación) ----------
 
 document.addEventListener('submit', (evento) => {
-  if (evento.target.id === 'form-login') {
-    evento.preventDefault();
-    enviarLogin(evento.target);
+  const formulario = evento.target;
+  switch (formulario.id) {
+    case 'form-login':
+      evento.preventDefault();
+      enviarLogin(formulario);
+      break;
+    case 'form-busqueda': // la búsqueda se ejecuta al enviar, no en cada tecla (B3 §8)
+      evento.preventDefault();
+      cartera.buscar(String(new FormData(formulario).get('q') ?? ''));
+      break;
+    case 'form-cliente':
+      evento.preventDefault();
+      cartera.enviarFormulario(Object.fromEntries(new FormData(formulario)));
+      break;
+    default: break;
   }
 });
 
 document.addEventListener('click', (evento) => {
   const boton = evento.target.closest('[data-accion]');
-  if (!boton) return;
+  if (!boton || boton.disabled) return;
+  const { id } = boton.dataset;
   switch (boton.dataset.accion) {
     case 'cerrar-sesion': salir(); break;
     case 'cerrar-aviso': actualizar({ aviso: null }); break;
-    case 'reintentar-cartera': cargarCartera(); break;
+    case 'reintentar-cartera': cartera.cargarCartera(); break;
+    case 'limpiar-busqueda': cartera.limpiarBusqueda(); break;
+    case 'nuevo-cliente': actualizar({ aviso: null }); cartera.abrirNuevo(); break;
+    case 'editar-cliente': actualizar({ aviso: null }); cartera.abrirEdicion(id); break;
+    case 'cancelar-formulario': cartera.cancelarFormulario(); break;
+    case 'ver-disponibles': cartera.verDisponibles(); break;
+    case 'ocultar-disponibles': cartera.ocultarDisponibles(); break;
+    case 'tomar-cliente': actualizar({ aviso: null }); cartera.tomar(id); break;
     default: break;
   }
 });

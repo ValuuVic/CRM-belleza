@@ -6,7 +6,8 @@
 
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { ErrorHttp, ErrorValidacion, peticionInvalida } from '../utils/errores.js';
+import { ErrorHttp, ErrorValidacion } from '../utils/errores.js';
+import { exigirCuerpoObjeto } from '../utils/validaciones.js';
 import { firmarToken } from '../config/jwt.js';
 import { randomBytes } from 'node:crypto';
 
@@ -24,15 +25,7 @@ const LONGITUD_MAXIMA = 255;
  * - 422 { errores } si es un objeto con correo o clave ausentes, vacíos o inválidos.
  */
 function validarCuerpo(req) {
-  const cuerpo = req.body;
-  // req.bytesCuerpo lo registra express.json (app.js); si no se leyó ningún byte no hay cuerpo,
-  // haya llegado con Content-Length: 0 o por partes (chunked). Si el lector JSON no registra
-  // los bytes (router montado sin la opción `verify`), se usa Content-Length.
-  const bytes = req.bytesCuerpo ?? (Number(req.get('content-length')) || 0);
-  const sinCuerpo = !req.is('application/json') || !(bytes > 0);
-  if (sinCuerpo || cuerpo === null || typeof cuerpo !== 'object' || Array.isArray(cuerpo)) {
-    throw peticionInvalida('El cuerpo de la petición debe ser un objeto JSON');
-  }
+  const cuerpo = exigirCuerpoObjeto(req); // utils/validaciones.js (compartida con clientes, B3)
   const errores = {};
   const correo = typeof cuerpo.correo === 'string' ? cuerpo.correo.trim() : cuerpo.correo;
   const { clave } = cuerpo;

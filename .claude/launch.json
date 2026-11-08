@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "spa",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5500", "--bind", "127.0.0.1", "--directory", "frontend"],
+      "port": 5500,
+      "url": "http://127.0.0.1:5500"
+    },
+    {
+      "name": "api-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["api/demo/servidor-demo.js"],
+      "port": 3000
+    }
+  ]
+}

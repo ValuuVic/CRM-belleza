@@ -1,7 +1,8 @@
 // B1-06, B1-07, B1-08 y B1-10: validaciones de NIT, teléfono y fechas.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizarNit, normalizarTelefono, fechaUtc } from '../src/utils/validaciones.js';
+import { normalizarNit, normalizarTelefono, fechaUtc, validarCliente, idValido } from '../src/utils/validaciones.js';
+import { ErrorValidacion } from '../src/utils/errores.js';
 
 describe('B1-06 normalizarNit', () => {
   test('acepta el NIT del contrato (esp. §8.2) con verificador K', () => {
@@ -140,6 +141,51 @@ describe('B1-08 fechaUtc', () => {
   test('rechaza valores que no son texto', () => {
     for (const v of [undefined, null, 1760544000000, new Date()]) {
       assert.deepEqual(fechaUtc(v), { valido: false, fecha: null });
+    }
+  });
+});
+
+describe('B3 validarCliente', () => {
+  const errores = (fn) => { try { fn(); } catch (e) { return e; } return null; };
+
+  test('alta válida: normaliza NIT, teléfono, nombre y correo; ignora campos ajenos (B3-09, B3-10)', () => {
+    assert.deepEqual(
+      validarCliente({ nombre: ' Bella ', nit: 'cf', telefono: '+502 5555 1234', correo: ' a@b.test ', vendedor_id: 99, id: 1 }),
+      { nombre: 'Bella', nit: null, telefono: '55551234', correo: 'a@b.test' },
+    );
+    assert.equal(validarCliente({ nombre: 'X', nit: '4521817-k', telefono: '22334455' }).correo, null);
+  });
+
+  test('alta con datos inválidos → ErrorValidacion con un mensaje por campo (B3-07)', () => {
+    const e = errores(() => validarCliente({ nit: '4521817-1', telefono: '1234', correo: 'x' }));
+    assert.ok(e instanceof ErrorValidacion);
+    assert.equal(e.status, 422);
+    assert.deepEqual(Object.keys(e.errores).sort(), ['correo', 'nit', 'nombre', 'telefono']);
+  });
+
+  test('edición parcial: solo valida y devuelve los campos presentes (B3-13)', () => {
+    assert.deepEqual(validarCliente({ telefono: '2468-1357' }, { parcial: true }), { telefono: '24681357' });
+    assert.deepEqual(validarCliente({ correo: null }, { parcial: true }), { correo: null });
+    assert.deepEqual(validarCliente({ correo: '' }, { parcial: true }), { correo: null });
+  });
+
+  test('edición sin campos editables → 400 (no 422)', () => {
+    for (const cuerpo of [{}, { vendedor_id: 5 }, { otro: 'x' }]) {
+      const e = errores(() => validarCliente(cuerpo, { parcial: true }));
+      assert.equal(e.status, 400, JSON.stringify(cuerpo));
+    }
+  });
+});
+
+describe('B3-06 idValido', () => {
+  test('acepta enteros positivos seguros', () => {
+    assert.equal(idValido('1'), 1);
+    assert.equal(idValido('9007199254740991'), 9007199254740991);
+  });
+
+  test('rechaza textos, cero, negativos, decimales, ceros iniciales, exponentes y desbordes', () => {
+    for (const v of ['abc', '0', '-1', '1.5', '010', '1e3', ' 1', '9007199254740993', '99999999999999999', '', undefined, 5]) {
+      assert.equal(idValido(v), null, String(v));
     }
   });
 });

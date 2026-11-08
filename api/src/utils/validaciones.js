@@ -1,7 +1,10 @@
-// Validaciones compartidas de B1 (B1-06, B1-07, B1-08).
+// Validaciones compartidas de B1 (B1-06, B1-07, B1-08) y de las rutas (B2, B3).
 // Reglas: docs/especificacion.md §5 R4 (NIT y teléfono) y R8 (fechas).
-// Estas funciones no lanzan excepciones: devuelven { valido, … } y la capa que
-// las use decide el mensaje de error 422 por campo.
+// normalizarNit, normalizarTelefono y fechaUtc no lanzan excepciones: devuelven { valido, … }.
+// exigirCuerpoObjeto y validarCliente (al final del archivo) sí lanzan ErrorHttp/ErrorValidacion,
+// porque las usan directamente los manejadores de ruta.
+
+import { ErrorValidacion, peticionInvalida } from './errores.js';
 
 /**
  * Normaliza y valida un NIT guatemalteco (R4).
@@ -90,4 +93,97 @@ export function fechaUtc(valor) {
 
   const fecha = new Date(valor);
   return Number.isNaN(fecha.getTime()) ? { valido: false, fecha: null } : { valido: true, fecha };
+}
+
+/**
+ * Exige que el cuerpo de la petición sea un objeto JSON (B2-02, B3-07); si no, 400.
+ * Sin cuerpo, otro Content-Type, cuerpo vacío (Express 5 lo entrega como {}), array u otro valor → 400.
+ * req.bytesCuerpo lo registra express.json (app.js); si el lector JSON no lo registra
+ * (router montado sin la opción `verify`), se usa Content-Length.
+ *
+ * @returns {Record<string, unknown>} el cuerpo
+ */
+export function exigirCuerpoObjeto(req) {
+  const cuerpo = req.body;
+  const bytes = req.bytesCuerpo ?? (Number(req.get('content-length')) || 0);
+  const sinCuerpo = !req.is('application/json') || !(bytes > 0);
+  if (sinCuerpo || cuerpo === null || typeof cuerpo !== 'object' || Array.isArray(cuerpo)) {
+    throw peticionInvalida('El cuerpo de la petición debe ser un objeto JSON');
+  }
+  return cuerpo;
+}
+
+/**
+ * Identificador numérico de ruta (B3-06). Devuelve el número o null si no es un entero positivo
+ * seguro: "abc", "0", "-1", "1.5", "01" o valores enormes no son identificadores válidos.
+ */
+export function idValido(valor) {
+  if (typeof valor !== 'string' || !/^[1-9]\d{0,15}$/.test(valor)) return null;
+  const n = Number(valor);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
+// Longitudes de las columnas de `clientes` (docs/especificacion.md §4.3).
+export const LONGITUD_NOMBRE_CLIENTE = 150;
+export const LONGITUD_CORREO_CLIENTE = 150;
+const CORREO_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Campos editables de un cliente (esp. §8.2 y B3 §3.2–3.3). Cualquier otro campo se ignora. */
+export const CAMPOS_CLIENTE = Object.freeze(['nombre', 'nit', 'telefono', 'correo']);
+
+/**
+ * Valida y normaliza los datos de un cliente (R4; B3-07, B3-09, B3-10, B3-13).
+ * - Solo se leen nombre, nit, telefono y correo; los demás campos del cuerpo se ignoran.
+ * - Alta (parcial = false): nombre, nit y telefono obligatorios; correo opcional.
+ * - Edición (parcial = true): solo se validan los campos presentes; si no hay ninguno → 400.
+ * - nit "CF" → null; teléfono sin separadores ni prefijo +502; correo null o '' → null.
+ *
+ * @param {Record<string, unknown>} cuerpo
+ * @param {{ parcial?: boolean }} [opciones]
+ * @returns {Partial<{ nombre: string, nit: string | null, telefono: string, correo: string | null }>}
+ * @throws {ErrorValidacion} 422 con los mensajes por campo.
+ */
+export function validarCliente(cuerpo, { parcial = false } = {}) {
+  const presentes = CAMPOS_CLIENTE.filter((c) => Object.hasOwn(cuerpo, c) && cuerpo[c] !== undefined);
+  if (parcial && presentes.length === 0) {
+    throw peticionInvalida('Indique al menos un campo para actualizar: nombre, nit, telefono o correo');
+  }
+  const debeValidar = (campo) => !parcial || presentes.includes(campo);
+  const errores = {};
+  const valores = {};
+
+  if (debeValidar('nombre')) {
+    const nombre = typeof cuerpo.nombre === 'string' ? cuerpo.nombre.trim() : cuerpo.nombre;
+    if (nombre === undefined || nombre === null || nombre === '') errores.nombre = 'Ingrese el nombre del cliente';
+    else if (typeof nombre !== 'string') errores.nombre = 'El nombre debe ser un texto';
+    else if (nombre.length > LONGITUD_NOMBRE_CLIENTE) errores.nombre = `El nombre no puede superar ${LONGITUD_NOMBRE_CLIENTE} caracteres`;
+    else valores.nombre = nombre;
+  }
+
+  if (debeValidar('nit')) {
+    const vacio = cuerpo.nit === undefined || cuerpo.nit === null || (typeof cuerpo.nit === 'string' && cuerpo.nit.trim() === '');
+    const r = normalizarNit(cuerpo.nit);
+    if (vacio) errores.nit = 'Ingrese el NIT o CF para consumidor final';
+    else if (!r.valido) errores.nit = 'El NIT no es válido; revise el número y el dígito verificador, o use CF';
+    else valores.nit = r.nit;
+  }
+
+  if (debeValidar('telefono')) {
+    const vacio = cuerpo.telefono === undefined || cuerpo.telefono === null || (typeof cuerpo.telefono === 'string' && cuerpo.telefono.trim() === '');
+    const r = normalizarTelefono(cuerpo.telefono);
+    if (vacio) errores.telefono = 'Ingrese el teléfono del cliente';
+    else if (!r.valido) errores.telefono = 'El teléfono debe tener 8 dígitos y comenzar con un dígito del 2 al 9';
+    else valores.telefono = r.telefono;
+  }
+
+  if (debeValidar('correo')) {
+    const correo = typeof cuerpo.correo === 'string' ? cuerpo.correo.trim() : cuerpo.correo;
+    if (correo === undefined || correo === null || correo === '') valores.correo = null;
+    else if (typeof correo !== 'string' || correo.length > LONGITUD_CORREO_CLIENTE || !CORREO_VALIDO.test(correo)) {
+      errores.correo = 'Ingrese un correo electrónico válido o deje el campo vacío';
+    } else valores.correo = correo;
+  }
+
+  if (Object.keys(errores).length) throw new ErrorValidacion(errores);
+  return valores;
 }
