@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test",
-    "test:bd": "node --env-file=.env --test",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:bd": "node --env-file=.env --test \"test/**/*.test.js\"",
     "dev": "node --watch --env-file=.env src/server.js",
-    "start": "node --env-file=.env src/server.js"
+    "start": "node --env-file=.env src/server.js",
+    "demo": "node demo/servidor-demo.js"
   },
   "keywords": [],
   "author": "",
