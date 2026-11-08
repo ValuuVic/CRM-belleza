@@ -2,7 +2,7 @@
 
 **Proyecto:** CRM Belleza  
 **Responsable:** Parte B  
-**Rama:** `base-api`  
+**Rama:** `b/base-api`  
 **Estado:** Pendiente de implementación  
 **Referencia:** `docs/especificacion.md` y `docs/plan.md`
 

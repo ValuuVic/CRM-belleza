@@ -23,6 +23,7 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-03 | 2026-11-07 | B | Hooks · `revisar-cambio.mjs` / `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
 | IA-04 | 2026-11-07 | B | Hooks · `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
 | IA-05 | 2026-11-07 | B | Pruebas de los hooks | Corregido | `2312f37` |
+| IA-06 | 2026-11-08 | B | B1 · `api/src/server.js` | Corregido | Pendiente (sin commit) |
 | IA-07 | 2026-11-08 | B | Hooks · `vigilar-bash.mjs` | Corregido | Pendiente (sin commit) |
 
 ---
@@ -156,6 +157,38 @@ Se añadió `PA5b`: en el repositorio real, con `spec-v1` y `CRM_PARTE=B`, escri
 Resultado final: `node --test` con 30 pruebas, 30 superadas y 0 fallidas.
 
 **Commit.** `2312f37` (configurar hooks y pruebas de claude code).
+
+---
+
+## IA-06 — `server.js` anunciaba "Escuchando" aunque el puerto estuviera ocupado (Express 5)
+
+**Descripción.**
+Con el puerto ya ocupado, el servidor de la API mostraba `[API] Escuchando en el puerto N.` y, justo después, `[API] No se pudo iniciar el servidor (código EADDRINUSE).`: un mensaje de éxito falso.
+
+**Propuesta del agente.**
+En la fase B1, el agente escribió el arranque con el patrón de Express 4:
+
+```js
+const servidor = crearApp().listen(puerto, () => {
+  console.log(`[API] Escuchando en el puerto ${puerto}.`);
+});
+servidor.on('error', (error) => { /* … */ process.exit(1); });
+```
+
+**Por qué era incorrecto.**
+En Express 5, `app.listen()` también invoca su callback cuando el listen falla, pasándole el error como primer argumento. El callback, que no tenía parámetros, registraba un arranque correcto que no había ocurrido. Esto contradice B1-01 (el servidor escucha en el puerto configurado "sin errores") y daría evidencia falsa al verificar el arranque.
+
+**Cómo se detectó.**
+La prueba automatizada `servidor.test.js`, "si el puerto está ocupado termina con código 1 sin mostrar detalles internos", falló: el proceso hijo resolvía como "escuchando". El agente pensó primero que el fallo estaba en la prueba (ocupar solo `127.0.0.1` en Windows) y la cambió para ocupar todas las interfaces. Como seguía fallando, comprobó con sondas que Windows sí devolvía `EADDRINUSE` y reprodujo el caso con el `server.js` real: la salida mostraba los dos mensajes seguidos.
+
+**Corrección.**
+El callback de `listen` recibe `(error)`. Si hay error, se registra el código y el proceso sale con código 1; solo si no lo hay se anuncia `Escuchando en el puerto N.`. La prueba ocupa ahora el puerto en todas las interfaces, igual que `app.listen(PORT)`, y exige el código 1 y el mensaje `EADDRINUSE`.
+
+**Verificación.**
+- Tras la corrección: `npm test` en `api/` dio 56 pruebas, 54 superadas, 0 fallidas y 2 omitidas (las de integración con MySQL, sin variables `DB_*`), y `npm run test:bd` con MySQL `crm-mysql` en marcha dio 56 de 56.
+- Tras aplicar también los hallazgos de `revisor-seguridad` y `revisor-contrato`: `npm test` da 63 pruebas, 61 superadas y 2 omitidas, y `npm run test:bd` da 63 de 63.
+
+**Commit.** Pendiente (sin commit).
 
 ---
 
