@@ -20,3 +20,11 @@ export function formatearCartera(cantidad, maximo = MAXIMO_CARTERA) {
   const n = Number.isInteger(cantidad) && cantidad >= 0 ? cantidad : 0;
   return `${n} de ${maximo}`;
 }
+
+const FORMATO_QUETZALES = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' });
+
+/** Importe numérico de la API → texto en quetzales ("Q450.00"). Devuelve '' si no es un número. */
+export function formatearQuetzales(monto) {
+  const n = typeof monto === 'number' ? monto : Number.NaN;
+  return Number.isFinite(n) ? FORMATO_QUETZALES.format(n) : '';
+}

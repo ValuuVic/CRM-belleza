@@ -9,6 +9,15 @@ describe('B1-06 normalizarNit', () => {
     assert.deepEqual(normalizarNit('4521817K'), { valido: true, nit: '4521817K' });
   });
 
+  test('enunciado R4: el NIT compacto tiene entre 2 y 12 caracteres', () => {
+    // 12345678901 + verificador 6 = 12 caracteres, válido; 123456789012 + 0 = 13 caracteres, rechazado
+    // aunque su dígito verificador sea correcto (no cabría en clientes.nit VARCHAR(12)).
+    assert.deepEqual(normalizarNit('123456789016'), { valido: true, nit: '123456789016' });
+    assert.deepEqual(normalizarNit('1234567890120'), { valido: false, nit: null });
+    assert.deepEqual(normalizarNit('00-1234567890-16'), { valido: true, nit: '123456789016' }, 'los ceros iniciales no cuentan');
+    assert.deepEqual(normalizarNit('1'), { valido: false, nit: null }, 'un solo carácter no tiene cuerpo');
+  });
+
   test('acepta un NIT con verificador numérico', () => {
     // 1234567: 1·8+2·7+3·6+4·5+5·4+6·3+7·2 = 112; 112 % 11 = 2; 11-2 = 9
     assert.deepEqual(normalizarNit('12345679'), { valido: true, nit: '12345679' });

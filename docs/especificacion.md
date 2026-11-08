@@ -107,111 +107,127 @@ Una cuenta inactiva no puede iniciar sesión.
 Si se desactiva mientras tiene una sesión o token válido, debe perder acceso en su siguiente petición.
 
 ## 4. Modelo de datos
-El esquema obligatorio será administrado únicamente por Laravel.
+El esquema obligatorio será administrado únicamente por Laravel, mediante migraciones. La API nunca ejecuta `CREATE`, `ALTER`, `DROP` ni `TRUNCATE`.
+Todas las fechas se almacenan en UTC. Todas las tablas tienen `created_at` y `updated_at`, salvo `historial_etapas`, que solo tiene `created_at`.
 
 ### 4.1 Tabla users
-Campos originales de Laravel:
+Campos originales de Laravel (la migración original no se edita):
 - `id`
-- `name`
-- `email`
-- `password`
+- `name` (la API lo expone como `nombre`)
+- `email` (la API lo expone como `correo`)
+- `password` (hash generado por Laravel)
 - Campos de autenticación y marcas de tiempo correspondientes.
 
-Campos adicionales:
+Campos adicionales, agregados con una migración propia:
 
 | Campo | Regla |
 |---|---|
-| rol | administrador, supervisor o vendedor; por defecto vendedor |
-| supervisor_id | FK a users, obligatorio para vendedores y NULL para otros roles |
+| rol | administrador, supervisor o vendedor; obligatorio; por defecto vendedor |
+| supervisor_id | FK a users; obligatorio para vendedores y NULL para los demás roles; debe referenciar una cuenta con rol supervisor |
 | activo | Booleano, por defecto verdadero |
 
-Cada vendedor pertenece a un supervisor.
+Cada vendedor pertenece al equipo de un supervisor. Las cuentas no se borran: se desactivan.
 
 ### 4.2 Tabla productos
 | Campo | Regla |
 |---|---|
 | id | Clave primaria |
 | nombre | VARCHAR(120), obligatorio, único |
-| precio | DECIMAL(10,2), mayor que cero |
-| activo | Booleano |
-| stock | INT NULL, adicional del sector |
+| precio | DECIMAL(10,2), mayor que cero, en quetzales |
+| activo | Booleano; solo los activos se agregan a una oportunidad |
+| stock | INT NULL, columna adicional del sector |
 
-`stock = NULL` significa que el producto no tiene control de inventario.
-
-Si stock tiene un valor numérico, debe ser mayor o igual a cero.
+Los productos no se borran: se desactivan.
+`stock = NULL` significa que el producto no tiene control de inventario. Si stock tiene un valor numérico, debe ser mayor o igual a cero. La columna acepta vacío, por lo que no rompe el contrato del núcleo.
 
 ### 4.3 Tabla clientes
 | Campo | Regla |
 |---|---|
 | id | Clave primaria |
-| vendedor_id | FK a users, admite NULL |
+| vendedor_id | FK a users, admite NULL; es el vendedor responsable |
 | nombre | VARCHAR(150), obligatorio |
-| nit | VARCHAR(12), admite NULL, único si no es NULL |
-| telefono | CHAR(8), obligatorio, único |
-| correo | VARCHAR(150), opcional |
+| nit | VARCHAR(12), admite NULL; NIT válido guardado compacto (de 2 a 12 caracteres, por ejemplo `4521817K`); NULL para consumidor final; único si no es NULL |
+| telefono | CHAR(8), obligatorio, único; 8 dígitos que empiezan con 2 a 9 |
+| correo | VARCHAR(150), opcional; formato de correo válido |
 
-Un `vendedor_id` nulo significa que el cliente está disponible.
+Un `vendedor_id` nulo significa que el cliente está disponible. Al borrar un cliente se borran sus actividades.
 
 ### 4.4 Tabla oportunidades
 | Campo | Regla |
 |---|---|
 | id | Clave primaria |
-| cliente_id | FK a clientes |
-| vendedor_id | FK a users |
+| cliente_id | FK a clientes, obligatorio |
+| vendedor_id | FK a users; el dueño de la oportunidad |
 | titulo | VARCHAR(150), obligatorio |
-| etapa | prospecto, calificado, propuesta, negociacion, ganada, perdida |
-| motivo_perdida | VARCHAR(255), opcional según etapa |
-| fecha_cierre | DATETIME, opcional según etapa |
+| etapa | prospecto, calificado, propuesta, negociacion, ganada o perdida; por defecto prospecto |
+| motivo_perdida | VARCHAR(255) o NULL; presente si y solo si la etapa es perdida |
+| fecha_cierre | DATETIME o NULL; presente si y solo si la etapa es ganada o perdida |
 
 La oportunidad pertenece al vendedor responsable.
 
 ### 4.5 Tabla oportunidad_productos
+Cada fila es una línea de la oportunidad: un producto, su cantidad y el precio al que se cotizó.
+
 | Campo | Regla |
 |---|---|
-| id | Clave primaria |
-| oportunidad_id | FK a oportunidades |
+| id | Clave primaria (es el `lineaId` del contrato) |
+| oportunidad_id | FK a oportunidades; al borrar la oportunidad se borran sus líneas |
 | producto_id | FK a productos |
 | cantidad | SMALLINT, entre 1 y 999 |
-| precio_unitario | DECIMAL(10,2), mayor que cero |
+| precio_unitario | DECIMAL(10,2), mayor que cero; el precio del catálogo al agregar el producto |
 
-Un producto solo puede aparecer una vez dentro de una misma oportunidad.
-El precio unitario se copia del catálogo al agregar el producto.
+Un producto solo puede aparecer una vez dentro de una misma oportunidad (índice único).
 
 ### 4.6 Tabla historial_etapas
 | Campo | Regla |
 |---|---|
 | id | Clave primaria |
-| oportunidad_id | FK a oportunidades |
-| usuario_id | FK a users |
-| etapa_anterior | Etapa anterior o NULL |
-| etapa_nueva | Etapa nueva |
-| created_at | Fecha del cambio en UTC |
+| oportunidad_id | FK a oportunidades; al borrar la oportunidad se borra su historial |
+| usuario_id | FK a users; quién hizo el cambio |
+| etapa_anterior | Una etapa o NULL (NULL en el registro de creación) |
+| etapa_nueva | Una etapa, obligatoria |
+| created_at | Fecha del cambio en UTC (esta tabla no tiene `updated_at`) |
 
-Cada oportunidad registra su creación y posteriores cambios de etapa.
+Cada oportunidad registra su creación y cada cambio de etapa posterior.
 
 ### 4.7 Tabla actividades
 | Campo | Regla |
 |---|---|
 | id | Clave primaria |
-| cliente_id | FK a clientes |
-| vendedor_id | FK a users |
-| tipo | llamada, reunion o tarea |
+| cliente_id | FK a clientes; al borrar el cliente se borran sus actividades |
+| vendedor_id | FK a users; quién la registró |
+| tipo | llamada, reunion o tarea; obligatorio |
 | descripcion | VARCHAR(500), obligatoria |
-| vence_en | DATETIME, opcional |
+| vence_en | DATETIME, opcional, en UTC |
 | completada | Booleano, por defecto falso |
-
-Las tablas conservarán las marcas de tiempo exigidas por el modelo del enunciado.
 
 ### 4.8 Integridad referencial
 La base de datos debe incluir:
-- Claves primarias y foráneas.
-- Índices únicos para productos, NIT y teléfonos cuando correspondan.
-- Índice único de producto por oportunidad.
-- Restricciones CHECK para cantidades y precios.
-- Restricciones relacionadas con el estado de las oportunidades.
-- Restricción de stock no negativo.
-- Reglas de eliminación y cascada definidas por el modelo oficial.
-Las validaciones que dependan de relaciones entre varias filas también se implementarán en la lógica del servidor.
+- Claves primarias y foráneas, con las cascadas indicadas en cada tabla.
+- Índices únicos: nombre de producto, NIT (cuando no es NULL), teléfono y producto por oportunidad.
+- Restricciones CHECK: precios mayores que cero, cantidades de 1 a 999, formato del teléfono, stock no negativo y la relación entre etapa, motivo de pérdida y fecha de cierre.
+
+Dos aplicaciones escriben en estas tablas, por lo que una regla que solo vive en una de ellas no protege nada. Las validaciones que dependen de varias filas (cartera máxima, transiciones, stock suficiente) se implementan además en la lógica del servidor, dentro de transacciones.
+
+### 4.9 Dónde se cumple cada regla
+| Regla | Base de datos | Panel Laravel | API Express |
+|---|---|---|---|
+| Rol y supervisor de cada cuenta | FK `supervisor_id` | FormRequest (solo un supervisor activo) | No crea cuentas |
+| Cuenta desactivada sin acceso | Columna `activo` | Middleware de sesión | Middleware JWT y bloqueo del vendedor al escribir |
+| Producto único y precio > 0 | Índice único y CHECK | FormRequest | Solo lectura del catálogo |
+| NIT válido, compacto y único | Índice único (NIT no NULL) | FormRequest con la misma normalización | `normalizarNit` y error 1062 → 409 |
+| Teléfono de 8 dígitos y único | CHECK de formato e índice único | FormRequest con la misma normalización | `normalizarTelefono` y error 1062 → 409 |
+| Cartera máxima de 10 clientes | — (depende de varias filas) | Transacción al asignar o reasignar | Transacción con bloqueo del vendedor (`FOR UPDATE`) antes de contar |
+| Toma atómica de un cliente | — | — | Transacción con `FOR UPDATE` y `UPDATE … WHERE vendedor_id IS NULL` |
+| Propiedad de los registros | FK | Políticas y consultas por equipo (404) | Filtro por el vendedor del token (404) |
+| Etapa válida | CHECK o ENUM | Solo lectura | Máquina de estados |
+| Motivo y fecha de cierre según etapa | CHECK | Solo lectura | Se escriben en la misma transacción que el cambio de etapa |
+| Historial de etapas | FK y cascada | Solo lectura | Misma transacción que el cambio, con la oportunidad bloqueada |
+| Producto una vez por oportunidad | Índice único | Solo lectura | Error 1062 → 409, sin consulta previa |
+| Cantidad de 1 a 999 | CHECK | Solo lectura | Validación (422) |
+| Precio copiado del catálogo | CHECK precio > 0 | Cambiar el precio no altera líneas | Se copia en el servidor; el cuerpo nunca lo trae |
+| Stock suficiente y no negativo (RP) | CHECK `stock IS NULL OR stock >= 0` | Administración del stock en el catálogo | Transacción con `FOR UPDATE` de los productos y `UPDATE … stock >= ?` |
+| Fechas en UTC | DATETIME en UTC | Zona UTC de Laravel | `mysql2` con `timezone: 'Z'`; entrada sin zona → 422 |
 
 ---
 
@@ -220,37 +236,39 @@ Las validaciones que dependan de relaciones entre varias filas también se imple
 ### R1. Acceso según rol
 Cada usuario podrá ingresar únicamente mediante la interfaz correspondiente a su rol.
 Los vendedores no pueden usar el panel Laravel. Los administradores y supervisores no pueden autenticarse como vendedores mediante la API.
-Las cuentas inactivas quedan bloqueadas.
+Las cuentas inactivas quedan bloqueadas en ambas puertas, y lo que tenían abierto (sesión del panel o token de la API) deja de servirles en su siguiente petición.
 
 ### R2. Propiedad de los registros
-Los vendedores solo pueden consultar y modificar los registros de su cartera.
+Los vendedores solo pueden consultar y modificar sus clientes, sus oportunidades y las actividades de los clientes de su cartera.
+Un supervisor solo ve a su equipo y a los clientes disponibles.
 El dueño se determina mediante la sesión o el JWT, nunca mediante datos enviados en el cuerpo.
-Un registro ajeno debe responder HTTP 404.
+Un registro ajeno responde HTTP 404, no 403: la respuesta no confirma que exista.
 
 ### R3. Cartera comercial
 Cada vendedor puede tener un máximo de diez clientes.
-Crear, asignar o tomar un cliente cuando la cartera está llena debe rechazarse.
-Un cliente sin vendedor está disponible.
-La toma de clientes debe ser atómica: si varios vendedores intentan tomar el mismo cliente, solamente uno puede conseguirlo.
+Crear, asignar o tomar un cliente cuando la cartera está llena se rechaza (HTTP 409 en la API).
+Un cliente sin vendedor está disponible y cualquier vendedor con espacio en su cartera puede tomarlo.
+La lista de disponibles muestra solo el `id` y el `nombre`: sin NIT, teléfono ni correo.
+La toma de clientes es atómica: si varios vendedores intentan tomar el mismo cliente al mismo tiempo, exactamente uno lo consigue y los demás reciben HTTP 409.
+La cartera máxima se respeta aunque lleguen varias altas o tomas simultáneas del mismo vendedor.
 
 ### R4. Identidad del cliente
 
 **NIT**
-- Se permite NIT válido de Guatemala o CF.
-- Se eliminan espacios y guiones antes de validarlo.
-- Se convierte a mayúsculas y se eliminan los ceros iniciales conforme al algoritmo oficial.
-- Se verifica el dígito mediante módulo 11.
-- CF se almacena como NULL.
-- La API presenta los valores NULL de NIT como `"CF"`.
-- No se permiten NIT duplicados cuando tienen valor.
+- Se permite NIT válido de Guatemala o CF (consumidor final).
+- Antes de validarlo se compacta: se eliminan espacios y guiones, se convierte a mayúsculas y se quitan los ceros a la izquierda.
+- Un NIT compacto tiene entre 2 y 12 caracteres. El último carácter es el dígito verificador (0 a 9, o K).
+- El verificador se calcula con módulo 11: se separa el cuerpo (todo menos el último carácter); cada dígito del cuerpo se multiplica, de derecha a izquierda, por 2, 3, 4…; se suman los productos y se calcula `(11 - (suma mod 11)) mod 11`. Si da 10, el verificador es K.
+- Ejemplo: `452 1817-k` se compacta a `4521817K`. Cuerpo 4521817: 7·2 + 1·3 + 8·4 + 1·5 + 2·6 + 5·7 + 4·8 = 133; 133 mod 11 = 1; 11 − 1 = 10 → K. Válido.
+- CF se almacena como NULL y la API lo devuelve como `"CF"`. Así varios clientes pueden ser consumidor final sin chocar con el índice único.
 
 **Teléfono**
-- Se eliminan separadores y el prefijo de Guatemala cuando esté presente.
-- Debe quedar un teléfono de ocho dígitos.
-- Debe comenzar con un dígito del 2 al 9.
-- No puede repetirse.
+- Se eliminan espacios, guiones, puntos, paréntesis y el prefijo de Guatemala (`+502` o `502`).
+- Debe quedar un teléfono de ocho dígitos que empiece con un dígito del 2 al 9.
 
-Los duplicados devuelven HTTP 409.
+**Sin repetidos**
+- El NIT (cuando no es CF) y el teléfono no se repiten entre clientes, comparados ya normalizados: `4521817-k` y `4521817K` son el mismo NIT.
+- Los duplicados devuelven HTTP 409. El árbitro final es el índice único de la base de datos; una consulta previa, sola, no basta.
 
 ### R5. Embudo de ventas
 | Etapa | Probabilidad |
@@ -262,45 +280,40 @@ Los duplicados devuelven HTTP 409.
 | ganada | 100 % |
 | perdida | 0 % |
 
-Toda oportunidad comienza en `prospecto`.
-Las primeras cuatro etapas son abiertas. `ganada` y `perdida` son cerradas.
-El sistema debe permitir, como mínimo, el avance consecutivo entre etapas abiertas, ganar desde negociación y perder desde negociación.
-Para ganar se exige al menos un producto.
-Para perder se exige un motivo de 1 a 255 caracteres después de eliminar espacios sobrantes.
-Una oportunidad cerrada no puede modificar su título, etapa o productos.
-El cambio de etapa y el registro de historial ocurren en la misma transacción.
+- Toda oportunidad nace en `prospecto`, para un cliente de la cartera de quien la crea.
+- Las primeras cuatro etapas son abiertas; `ganada` y `perdida` son cerradas.
+- El enunciado exige como mínimo avanzar una etapa a la vez entre las abiertas, ganar desde negociación y perder desde negociación. Las transiciones adicionales y la respuesta de la API a las no permitidas se fijan en la decisión D1.
+- Para ganar se exige al menos un producto.
+- Para perder se exige un motivo de 1 a 255 caracteres después de eliminar los espacios de los extremos.
+- Al cerrarse, la oportunidad registra su fecha de cierre. Una oportunidad cerrada no puede modificar su título, etapa ni productos (HTTP 409).
+- El historial registra la creación (con etapa anterior NULL) y cada cambio de etapa, con quién y cuándo, en la misma transacción que el cambio.
+- Un intento rechazado no deja registro en el historial, y dos cambios simultáneos sobre la misma oportunidad no pueden dejar dos registros.
 
 ### R6. Montos y precios
-- Los montos están expresados en quetzales.
-- Los precios se almacenan como DECIMAL(10,2).
-- El precio se copia del catálogo cuando se agrega una línea.
+- Los montos están expresados en quetzales con dos decimales.
+- Los precios se almacenan como DECIMAL(10,2), nunca como FLOAT.
+- El precio se copia del catálogo cuando se agrega una línea. Quien hace la petición nunca envía el precio.
 - Los cambios posteriores del precio del catálogo no alteran líneas existentes.
-- El total se calcula en el servidor.
+- El total de una oportunidad es la suma de cantidad × precio unitario de sus líneas, y lo calcula el servidor.
 - Solo pueden agregarse productos activos.
-- Un producto duplicado dentro de una oportunidad se rechaza con HTTP 409.
-- Las cantidades deben estar entre 1 y 999.
+- Un producto que ya está en la oportunidad no se agrega otra vez (HTTP 409): se cambia su cantidad.
+- Las cantidades son enteros entre 1 y 999.
 
 ### R7. Reportes
-Una venta corresponde a una oportunidad ganada.
-El mes de venta se determina según la fecha de cierre en hora de Guatemala.
-El reporte incluirá:
-- Cantidad de ventas.
-- Total vendido.
-- Pronóstico.
-- Información de cartera según el rol.
-- Desgloses exigidos en el panel.
-El total vendido se calcula sumando las oportunidades ganadas durante el mes.
-El pronóstico se calcula con las oportunidades abiertas:
-`pronostico = SUM(total_oportunidad * probabilidad / 100)`
-Se redondea a dos decimales.
+- Una venta corresponde a una oportunidad ganada.
+- El mes de venta es el mes calendario de su fecha de cierre en hora de Guatemala (UTC−6, sin horario de verano), aunque la base guarde UTC. Por ejemplo, una venta del 1 de noviembre a las 03:30 UTC pertenece al 31 de octubre.
+- El total vendido es la suma de los totales de las ventas del mes, calculados con el precio guardado en cada línea.
+- El pronóstico se calcula con las oportunidades abiertas, sin filtro de mes:
+`pronostico = SUM(total_oportunidad * probabilidad / 100)`, redondeado a dos decimales.
+- El reporte incluye cantidad de ventas, total vendido, pronóstico, información de cartera según el rol y los desgloses exigidos en el panel.
+- Los reportes se calculan en la base de datos (SQL en la API; Eloquent o el constructor de consultas en el panel) y la API los devuelve como números, no como texto.
 
 ### R8. Respuestas y fechas
 - La API utiliza JSON.
-- No se devuelven hashes ni identificadores internos prohibidos.
-- Las fechas de salida se expresan en ISO 8601 UTC.
-- Las fechas de entrada que necesiten zona horaria deben incluirla.
-- Una fecha ambigua se rechaza con HTTP 422.
-- La SPA muestra fechas en la zona `America/Guatemala`.
+- La API nunca devuelve hashes de contraseñas, llaves internas como `vendedor_id`, `user_id` o `supervisor_id`, ni datos de otro vendedor.
+- Las fechas de salida se expresan en ISO 8601 UTC, por ejemplo `2026-10-05T16:00:00.000Z`.
+- Una fecha de entrada sin zona horaria (`2026-12-01T10:00`) es ambigua y se rechaza con HTTP 422. Con zona (`2026-12-01T10:00:00-06:00`) se almacena en UTC.
+- La SPA muestra las fechas en la zona `America/Guatemala`.
 - Una actividad está vencida cuando no está completada y su vencimiento ya pasó.
 
 ## 6. Requisitos del panel Laravel
@@ -407,113 +420,144 @@ El repositorio debe incluir:
 - Pruebas de la regla propia del sector.
 
 ## 8. Contrato obligatorio de la API
-Todas las rutas siguientes utilizan el prefijo `/api`.
-| Método | Ruta | Éxito |
-|---|---|---|
-| POST | /auth/login | 200, token y usuario |
-| GET | /productos | 200, catálogo activo |
-| GET | /clientes?q= | 200, clientes del vendedor |
-| POST | /clientes | 201, cliente |
-| GET | /clientes/disponibles | 200, lista pública limitada |
-| POST | /clientes/:id/tomar | 200, cliente |
-| GET | /clientes/:id | 200, cliente |
-| PATCH | /clientes/:id | 200, cliente |
-| POST | /clientes/:id/actividades | 201, actividad |
-| GET | /actividades?estado= | 200, actividades |
-| PATCH | /actividades/:id | 200, actividad |
-| GET | /oportunidades?etapa= | 200, oportunidades |
-| POST | /oportunidades | 201, detalle |
-| GET | /oportunidades/:id | 200, detalle |
-| PATCH | /oportunidades/:id | 200, detalle |
-| PATCH | /oportunidades/:id/etapa | 200, detalle |
-| POST | /oportunidades/:id/productos | 201, detalle |
-| PATCH | /oportunidades/:id/productos/:lineaId | 200, detalle |
-| DELETE | /oportunidades/:id/productos/:lineaId | 204, sin cuerpo |
-| GET | /reportes/resumen?mes= | 200, resumen |
-Los cuerpos de entrada, parámetros, códigos de error y respuestas deben coincidir exactamente con la sección 8 del enunciado oficial.
+Base: `http://localhost:3000/api`. Todo viaja en JSON. Todas las rutas exigen `Authorization: Bearer <token>`, salvo el inicio de sesión.
+Se pueden agregar endpoints, pero no cambiar estos: el catedrático los verifica con pruebas automáticas.
+
+| Método | Ruta | Cuerpo o parámetros | Respuesta correcta | Errores |
+|---|---|---|---|---|
+| POST | /auth/login | `{ correo, clave }` | 200 `{ token, usuario }` | 400, 401, 403, 422 |
+| GET | /productos | — | 200, productos activos | 400\*, 401 |
+| GET | /clientes | `?q=` (contiene, en nombre o NIT; máximo 100 caracteres) | 200, clientes de su cartera | 400, 401 |
+| POST | /clientes | `{ nombre, nit, telefono, correo }`; correo opcional | 201, el cliente, ya en su cartera | 400, 401, 409, 422 |
+| GET | /clientes/disponibles | — | 200, `[{ id, nombre }]` | 400\*, 401 |
+| POST | /clientes/:id/tomar | — | 200, el cliente, ya en su cartera | 401, 404, 409 |
+| GET | /clientes/:id | — | 200, el cliente | 401, 404 |
+| PATCH | /clientes/:id | Los campos que cambian (`nombre`, `nit`, `telefono`, `correo`) | 200, el cliente | 400, 401, 404, 409, 422 |
+| POST | /clientes/:id/actividades | `{ tipo, descripcion, vence_en }`; vence_en opcional | 201, la actividad | 400, 401, 404, 422 |
+| GET | /actividades | `?estado=pendiente` o `completada` | 200, actividades de los clientes de su cartera | 400, 401 |
+| PATCH | /actividades/:id | `{ completada }` | 200, la actividad | 400, 401, 404, 422 |
+| GET | /oportunidades | `?etapa=` | 200, resumen de sus oportunidades | 400, 401 |
+| POST | /oportunidades | `{ cliente_id, titulo }` | 201, detalle, en prospecto | 400, 401, 422 |
+| GET | /oportunidades/:id | — | 200, detalle | 401, 404 |
+| PATCH | /oportunidades/:id | `{ titulo }` | 200, detalle | 400, 401, 404, 409, 422 |
+| PATCH | /oportunidades/:id/etapa | `{ etapa, motivo_perdida }`; motivo solo al perder | 200, detalle | 400, 401, 404, 409, 422 |
+| POST | /oportunidades/:id/productos | `{ producto_id, cantidad }` | 201, detalle | 400, 401, 404, 409, 422 |
+| PATCH | /oportunidades/:id/productos/:lineaId | `{ cantidad }` | 200, detalle | 400, 401, 404, 409, 422 |
+| DELETE | /oportunidades/:id/productos/:lineaId | — | 204, sin cuerpo | 401, 404, 409 |
+| GET | /reportes/resumen | `?mes=AAAA-MM`; por omisión, el mes actual de Guatemala | 200, resumen del mes | 400, 401 |
+
+\* 400 solo cuando se envía un parámetro de consulta que la ruta no admite (decisión D6; §8.7).
+
+`:lineaId` es el id de la línea, el que aparece en `productos` dentro del detalle.
+Los campos que el contrato no lista (por ejemplo `vendedor_id`, `etapa` al crear o `precio_unitario`) nunca se usan (decisión D5).
+Un identificador de ruta que no es un entero positivo (por ejemplo `/clientes/abc`) responde 404, igual que un recurso inexistente (decisión D9).
 
 ### 8.1 Respuesta de login
 ```json
 {
-  "token": "jwt",
-  "usuario": {
-    "id": 4,
-    "nombre": "Valeria López",
-    "correo": "valeria@crm.test"
-  }
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "usuario": { "id": 4, "nombre": "Valeria López", "correo": "valeria@crm.test" }
 }
 ```
+
 ### 8.2 Respuesta de cliente
+En una lista, cada elemento tiene esta misma forma. El NIT NULL se devuelve como `"CF"` y `correo` puede ser `null`.
+```json
+{ "id": 1, "nombre": "Comercial El Quetzal", "nit": "4521817K",
+  "telefono": "55551234", "correo": "compras@elquetzal.test" }
+```
+
+`GET /clientes/disponibles` devuelve exclusivamente `[{ "id": 13, "nombre": "Hotel Los Pinos" }]`.
+
+### 8.3 Detalle de oportunidad
 ```json
 {
   "id": 1,
-  "nombre": "Comercial El Quetzal",
-  "nit": "4521817K",
-  "telefono": "55551234",
-  "correo": "compras@elquetzal.test"
+  "cliente": { "id": 1, "nombre": "Comercial El Quetzal" },
+  "titulo": "Renovación de planes",
+  "etapa": "ganada",
+  "probabilidad": 100,
+  "total": 5650,
+  "fecha_cierre": "2026-10-05T16:00:00.000Z",
+  "motivo_perdida": null,
+  "productos": [
+    { "id": 1, "producto_id": 2, "nombre": "Plan avanzado",
+      "cantidad": 2, "precio_unitario": 2600, "subtotal": 5200 },
+    { "id": 2, "producto_id": 3, "nombre": "Instalación",
+      "cantidad": 1, "precio_unitario": 450, "subtotal": 450 }
+  ],
+  "historial": [
+    { "etapa_anterior": null, "etapa_nueva": "prospecto",
+      "usuario": "Valeria López", "fecha": "2026-09-23T16:00:00.000Z" }
+  ]
 }
 ```
+- `probabilidad` es un entero porcentual (10, 25, 50, 75, 100 o 0).
+- `total` y `subtotal` los calcula el servidor con el precio guardado en cada línea.
+- `historial[].usuario` es el nombre de quien hizo el cambio, como texto; nunca su id (R8).
 
-### 8.3 Detalle de oportunidad
-Debe contener:
-- `id`
-- `cliente` con id y nombre
-- `titulo`
-- `etapa`
-- `probabilidad`
-- `total`
-- `fecha_cierre`
-- `motivo_perdida`
-- `productos` con id de línea, producto_id, nombre, cantidad, precio_unitario y subtotal
-- `historial` con etapa_anterior, etapa_nueva, usuario y fecha
+**Resumen del listado** (`GET /oportunidades`): sin productos ni historial (decisión D11).
+```json
+{ "id": 1, "cliente": { "id": 1, "nombre": "Comercial El Quetzal" }, "titulo": "Renovación de planes",
+  "etapa": "ganada", "probabilidad": 100, "total": 5650, "fecha_cierre": "2026-10-05T16:00:00.000Z" }
+```
+
+**Catálogo** (`GET /productos`): solo productos activos, ordenados por nombre (decisión D12).
+```json
+{ "id": 2, "nombre": "Plan avanzado", "precio": 2750.5, "stock": null }
+```
 
 ### 8.4 Respuesta de actividad
-Debe contener:
-- `id`
-- `cliente` con id y nombre
-- `tipo`
-- `descripcion`
-- `vence_en`
-- `completada`
-- `vencida`
+```json
+{ "id": 2, "cliente": { "id": 2, "nombre": "Ferretería Xela" },
+  "tipo": "tarea", "descripcion": "Enviar propuesta de capacitación",
+  "vence_en": "2030-01-15T15:00:00.000Z", "completada": false, "vencida": false }
+```
+`vencida` se calcula al responder: es verdadera si la actividad no está completada y su vencimiento ya pasó.
 
 ### 8.5 Resumen mensual
 ```json
-{
-  "mes": "2026-10",
-  "ventas": 2,
-  "total": 9250,
-  "pronostico": 2512.88,
-  "cartera": {
-    "clientes": 3,
-    "maximo": 10
-  }
-}
+{ "mes": "2026-10", "ventas": 2, "total": 9250, "pronostico": 2512.88,
+  "cartera": { "clientes": 3, "maximo": 10 } }
 ```
+Los montos viajan como números: `9250` y `9250.00` son el mismo número en JSON, pero `"9250.00"` (texto) es incorrecto.
 
 ### 8.6 Códigos HTTP
-| Código | Significado |
+| Código | Cuándo se usa |
 |---|---|
-| 200 | Consulta o modificación correcta |
-| 201 | Recurso creado |
-| 204 | Eliminación de línea, sin cuerpo |
-| 400 | Petición no interpretable o parámetro inválido |
-| 401 | Autenticación inválida |
-| 403 | Rol no permitido en el login |
-| 404 | Recurso inexistente o ajeno |
-| 409 | Conflicto con el estado actual |
-| 422 | Error de validación |
-| 500 | Error inesperado |
+| 200 | Lectura o modificación correcta |
+| 201 | Se creó un cliente, una oportunidad, una línea o una actividad |
+| 204 | Se quitó un producto de una oportunidad; no hay cuerpo |
+| 400 | La petición no se puede interpretar: JSON mal formado, falta el cuerpo, o un filtro o parámetro no existe |
+| 401 | Credenciales incorrectas; o falta el token, está alterado, venció o la cuenta ya no es válida |
+| 403 | Credenciales correctas, pero la cuenta no puede usar la API: no es de vendedor o está desactivada |
+| 404 | El recurso no existe o es de otro vendedor |
+| 409 | La petición choca con el estado actual: cartera llena, cliente ya tomado, NIT o teléfono repetido, producto repetido, oportunidad cerrada, etapa repetida o stock insuficiente |
+| 422 | La petición se entiende, pero los datos violan una regla |
+| 500 | Error inesperado; el mensaje es genérico y el detalle queda solo en la consola del servidor |
 
-Los errores generales tendrán formato `{ "error": "mensaje" }`.
-Los errores de validación usarán `{ "errores": { "campo": "mensaje" } }`.
+### 8.7 Formato de errores
+Error general (cualquier código):
+```json
+{ "error": "Su cartera ya tiene 10 clientes, el máximo permitido." }
+```
+Error de validación (422), un mensaje por campo:
+```json
+{ "errores": {
+    "nit": "Escriba un NIT válido (con su dígito verificador) o CF.",
+    "telefono": "Escriba un teléfono de Guatemala de 8 dígitos." } }
+```
+Los mensajes están en español y tratan al usuario de usted.
+
+**Precedencia de códigos.** En las rutas sobre un recurso existente se comprueba, en este orden: identificador de ruta (404) → parámetros de consulta (400) → cuerpo interpretable (400) → propiedad (404) → estado cerrado (409) → validación de campos (422) → reglas de negocio (409 o 422). Así, una oportunidad ajena siempre responde 404 y una cerrada 409, aunque el cuerpo sea inválido (decisión D10).
 
 ## 9. Requisitos de la SPA
 
 ### F1. Sesión
 La SPA tendrá una pantalla de inicio de sesión.
-Guardará la sesión necesaria y permitirá cerrar sesión.
-Si recibe HTTP 401 durante una sesión, eliminará el token y solicitará una nueva autenticación.
+Si la cuenta no es de vendedor o está desactivada, la SPA muestra el mensaje del 403.
+Guardará la sesión necesaria y permitirá cerrar sesión. LocalStorage solo guarda la sesión.
+Si recibe HTTP 401 durante una sesión, eliminará el token y solicitará una nueva autenticación con un aviso.
 
 ### F2. Cartera
 La SPA mostrará:
@@ -574,6 +618,8 @@ Cuando un vendedor intente marcar una oportunidad como ganada, el sistema compro
 Si las existencias no alcanzan, no se confirmará la venta.
 
 ### 10.2 Reglas
+La numeración válida de la regla propia es la de esta sección. En `docs/specs/B4-oportunidades.md`, «RP-3» se usa para el tratamiento de `stock = NULL`, que aquí está en la sección 10.3 y en RP-04.
+
 **RP-1. Verificación**
 Antes de confirmar una venta, se verifica el stock de todas las líneas de la oportunidad que tengan inventario controlado.
 
@@ -621,9 +667,11 @@ La API utiliza bcryptjs para verificarlos.
 No se almacenan contraseñas en texto plano.
 
 ### S2. Secretos
-Los archivos `.env` no se publican.
-Se utilizan archivos `.env.example` sin contraseñas reales.
+Los archivos `.env` no se publican: están en `.gitignore` en `laravel/` y en `api/`.
+Se utilizan archivos `.env.example` sin contraseñas ni valores reales.
 `JWT_SECRET` debe tener al menos 32 caracteres aleatorios.
+La contraseña pública de la semilla (`Ventas2026`) solo puede aparecer en las semillas, en el README y en la colección de Postman.
+Borrar un `.env` en un commit posterior no lo saca del historial de Git: si un secreto se filtró, debe cambiarse.
 
 ### S3. Consultas SQL
 La API utiliza parámetros `?` en las consultas.
@@ -708,12 +756,200 @@ Dado un supervisor que asigna un cliente desde Laravel, cuando el vendedor consu
 **CA-16 — Venta compartida**
 Dada una oportunidad marcada como ganada mediante la SPA, cuando el administrador consulta los reportes Laravel del mes correspondiente, entonces esa venta se refleja correctamente.
 
+### 12.1 Criterios por requisito
+Cada requisito de las secciones 6, 7, 9 y 11 se cumple cuando se cumplen todos sus criterios. Los criterios de la Parte B se detallan, con sus pruebas, en las specs de fase (`docs/specs/B1-base.md` a `B6`); aquí se resume el criterio verificable de cada requisito y se indica la spec que lo desarrolla.
+
+#### Panel Laravel (Parte A)
+
+**L1-01 — Esquema completo**
+Dada una base vacía, cuando se ejecuta `php artisan migrate:fresh --seeder=VerificacionSeeder`, entonces existen las tablas de la sección 4 con sus llaves foráneas, índices únicos y restricciones CHECK, sin pasos manuales, y la migración original de `users` no fue editada.
+
+**L1-02 — Dos semillas**
+Dada una base vacía, cuando se ejecuta `php artisan migrate:fresh --seed`, entonces quedan cargadas `VerificacionSeeder` y `SectorSeeder`, sin repetir correos, NIT ni teléfonos y sin superar 10 clientes por vendedor.
+
+**L1-03 — Restricción en la base**
+Dado el esquema creado, cuando se intenta guardar directamente en MySQL un producto con precio 0, una línea con cantidad 1000 o un stock negativo, entonces la base lo rechaza por su restricción CHECK.
+
+**L2-01 — Sin registro público**
+Dado el panel en ejecución, cuando se solicita la ruta de registro de Breeze, entonces no existe (404).
+
+**L2-02 — Gestión de cuentas**
+Dado un administrador, cuando crea un vendedor sin supervisor o con un supervisor inactivo, entonces el formulario vuelve con un mensaje junto al campo y lo escrito se conserva.
+
+**L2-03 — Autoprotección del administrador**
+Dado un administrador, cuando intenta desactivarse o quitarse su propio rol, entonces la operación se rechaza con un mensaje.
+
+**L2-04 — Vendedor en el panel**
+Dado un vendedor con credenciales correctas, cuando intenta iniciar sesión en el panel, entonces ve un mensaje que lo envía a la SPA y no entra.
+
+**L2-05 — Cuenta desactivada en el panel**
+Dado un usuario con sesión abierta en el panel, cuando su cuenta se desactiva, entonces pierde el acceso en su siguiente petición.
+
+**L3-01 — Catálogo sin borrado**
+Dado un producto, cuando el administrador lo retira, entonces queda desactivado y no se borra; deja de aparecer en `GET /api/productos`.
+
+**L3-02 — Precio válido**
+Dado el formulario de producto, cuando se envía un precio 0, negativo o con tres decimales, entonces se rechaza con un mensaje junto al campo.
+
+**L3-03 — Precio histórico**
+Dada una oportunidad con un producto agregado, cuando el administrador cambia su precio en el catálogo, entonces la línea y los reportes conservan el precio guardado (CA-09).
+
+**L4-01 — Búsqueda y filtros**
+Dado un administrador o supervisor, cuando busca por nombre o NIT y filtra por vendedor o «sin asignar», entonces solo ve los clientes que le corresponden y que cumplen el filtro.
+
+**L4-02 — Mismas reglas que la API**
+Dado el formulario de cliente, cuando se escribe `4521817-k` y `+502 5555-1234`, entonces se guardan como `4521817K` y `55551234`, y un NIT o teléfono ya existente se rechaza igual que en la API.
+
+**L4-03 — Asignación con cartera llena**
+Dado un vendedor con 10 clientes, cuando se le asigna otro desde el panel, entonces se rechaza con un mensaje y su cartera sigue en 10.
+
+**L4-04 — Eliminación de clientes**
+Dado un cliente con oportunidades, cuando el administrador intenta eliminarlo, entonces se rechaza; sin oportunidades, se elimina junto con sus actividades.
+
+**L5-01 — Visibilidad del supervisor**
+Dado Sergio Ruiz, cuando escribe a mano la dirección de un cliente del equipo de Sandra Pérez, entonces recibe 404.
+
+**L5-02 — Asignación dentro del equipo**
+Dado un supervisor, cuando intenta asignar un cliente a un vendedor de otro equipo o inactivo, entonces se rechaza.
+
+**L5-03 — Página del equipo**
+Dado un supervisor, cuando abre la página de su equipo con la semilla de verificación, entonces ve la cartera (por ejemplo, Carlos Ajú 9 de 10) y las ventas del mes de cada vendedor.
+
+**L6-01 — Oportunidades de solo lectura**
+Dado un administrador o supervisor, cuando consulta las oportunidades, entonces las ve filtradas por etapa y vendedor, con el total y la fecha de cierre en hora de Guatemala, y sin acciones de modificación.
+
+**L6-02 — Reporte del mes**
+Dada la semilla de verificación, cuando el administrador selecciona octubre de 2026, entonces el reporte muestra 4 ventas, Q22,450.00 y pronóstico Q6,751.13, con los desgloses por vendedor y por producto de la sección 13.3.
+
+**L7-01 — Validación en el servidor**
+Dado cualquier formulario del panel, cuando se envían datos inválidos, entonces vuelve con un mensaje en español, tratando de usted, junto a cada campo, y con lo escrito conservado.
+
+#### API REST (Parte B, salvo A6)
+
+**A1-01 — Login de vendedor** (B2-01)
+Dado un vendedor activo, cuando envía `POST /api/auth/login` con credenciales correctas, entonces recibe 200 con `{ token, usuario }` y un JWT HS256 con su id en `sub` y expiración configurable.
+
+**A1-02 — Credenciales incorrectas** (B2-03)
+Dado un correo inexistente o una contraseña incorrecta, cuando se inicia sesión, entonces la respuesta es 401 y exactamente la misma en ambos casos.
+
+**A1-03 — Rol no permitido** (B2-04, CA-02)
+Dado un administrador, un supervisor o una cuenta desactivada con la contraseña correcta, cuando inicia sesión en la API, entonces recibe 403 y ningún token.
+
+**A2-01 — Token obligatorio** (B2-06, B2-07)
+Dada cualquier ruta salvo el login, cuando se llama sin token o con un token alterado, vencido o firmado con otro algoritmo, entonces responde 401.
+
+**A2-02 — Revocación** (B2-08, CA-03)
+Dado un vendedor con un token válido, cuando su cuenta se desactiva o deja de ser vendedor, entonces su siguiente petición responde 401.
+
+**A3-01 — Clientes y cartera** (B3-01 a B3-15)
+Dada la semilla de verificación, cuando Valeria consulta `GET /api/clientes` y `GET /api/clientes/disponibles`, entonces recibe sus 3 clientes y los 6 disponibles de la semilla con solo `id` y `nombre`.
+
+**A3-02 — Toma atómica** (B3-C1)
+Dado un cliente disponible, cuando diez vendedores intentan tomarlo a la vez, entonces exactamente uno recibe 200 y los demás 409.
+
+**A3-03 — Cartera con peticiones simultáneas** (B3-C2)
+Dado Carlos con 9 clientes, cuando envía tres altas válidas simultáneas, entonces exactamente una responde 201, las otras dos 409, y su cartera queda en 10.
+
+**A4-01 — Oportunidades y productos** (B4-01 a B4-21)
+Dado un cliente de su cartera, cuando el vendedor crea una oportunidad y agrega productos, entonces se crea en `prospecto` con su primer historial, cada línea copia el precio del catálogo y el total lo calcula el servidor.
+
+**A4-02 — Cambio de etapa transaccional** (B4-C1)
+Dada una oportunidad abierta, cuando llegan dos cambios simultáneos de etapa, entonces solo uno se aplica y el historial tiene un único registro nuevo.
+
+**A5-01 — Crear actividad** (B5)
+Dado un cliente de su cartera, cuando el vendedor envía `POST /api/clientes/:id/actividades` con `vence_en` con zona horaria, entonces recibe 201 con la fecha en UTC y `vencida` calculada.
+
+**A5-02 — Fecha ambigua** (B5)
+Dada una actividad nueva, cuando `vence_en` llega sin zona horaria (`2026-12-01T10:00`), entonces responde 422 con `errores.vence_en`.
+
+**A5-03 — Actividades ajenas y filtro** (B5)
+Dado un vendedor, cuando consulta `GET /api/actividades?estado=pendiente` o modifica una actividad de un cliente ajeno, entonces solo ve las de su cartera y lo ajeno responde 404; un estado no admitido responde 400.
+
+**A6-01 — Resumen del mes** (Parte A)
+Dada la semilla de verificación, cuando Valeria consulta `GET /api/reportes/resumen?mes=2026-10`, entonces recibe `{ "mes": "2026-10", "ventas": 2, "total": 9250, "pronostico": 2512.88, "cartera": { "clientes": 3, "maximo": 10 } }` con números, no texto.
+
+**A6-02 — Mes por omisión y mes inválido** (Parte A)
+Dado un vendedor, cuando consulta el resumen sin `mes`, entonces recibe el mes actual de Guatemala; con `mes=2026-13`, recibe 400.
+
+**A7-01 — Errores en JSON** (B1-04, B1-05)
+Dada cualquier petición, cuando falla por JSON mal formado, ruta inexistente o error inesperado, entonces la respuesta es JSON con `{ error }` (400, 404 o 500) y el 500 no revela detalles internos.
+
+**A7-02 — Validación por campo** (B1, B3-07)
+Dada una petición con datos que violan una regla, cuando se procesa, entonces responde 422 con `{ errores: { campo: mensaje } }`.
+
+**A8-01 — Documentación** (B6)
+Dado el repositorio, cuando se revisa, entonces el README tiene la tabla de endpoints y los pasos exactos para levantar las tres piezas desde cero, y `docs/api.postman_collection.json` tiene al menos una petición por endpoint, los errores principales y la prueba de la regla propia.
+
+#### SPA (Parte B, salvo F5)
+
+**F1-01 — Inicio y cierre de sesión** (B2-11 a B2-13)
+Dado un vendedor, cuando inicia sesión, entonces el token se guarda en LocalStorage (sin la contraseña) y se borra al cerrar sesión.
+
+**F1-02 — Cuenta no permitida y sesión expirada** (B2-14, B2-16)
+Dado un administrador, cuando intenta entrar a la SPA, entonces ve el mensaje del 403; dado un vendedor con sesión abierta, cuando una petición responde 401, entonces vuelve al inicio de sesión con un aviso.
+
+**F2-01 — Cartera** (B3-14, B3-15)
+Dado un vendedor, cuando abre su cartera, entonces ve sus clientes con búsqueda en el servidor y el indicador «X de 10»; al dar de alta un cliente con errores, los mensajes aparecen junto a cada campo y lo escrito se conserva.
+
+**F2-02 — Tomar clientes**
+Dado un cliente disponible que otro vendedor ya tomó, cuando el vendedor intenta tomarlo, entonces la SPA muestra el mensaje del 409.
+
+**F3-01 — Tablero** (B4-22)
+Dado un vendedor, cuando abre el embudo, entonces ve una columna por cada etapa abierta y la lista de oportunidades cerradas.
+
+**F3-02 — Detalle** (B4-23)
+Dada una oportunidad propia, cuando la abre, entonces ve productos con cantidad, precio guardado y subtotal, el total en quetzales y el historial con fecha y hora de Guatemala.
+
+**F3-03 — Acciones** (B4-24, B4-25)
+Dada una oportunidad abierta, cuando la consulta, entonces solo ve los botones de las transiciones permitidas; perder pide el motivo, y un 409 por stock se muestra conservando el estado previo.
+
+**F4-01 — Actividades** (B5)
+Dado un vendedor, cuando abre sus actividades, entonces ve pendientes y completadas, las vencidas se distinguen, crea una con fecha y hora local (enviada en ISO 8601 con zona) y puede marcarla como completada.
+
+**F5-01 — Resumen del mes** (Parte A)
+Dado un vendedor, cuando elige un mes, entonces ve ventas, total vendido, pronóstico y cartera, con montos en quetzales y fechas en hora de Guatemala, sin importar la zona horaria de la computadora.
+
+**F6-01 — Calidad de la interfaz** (B2-16, B6)
+Dada la SPA, cuando hay peticiones en curso, entonces se muestra un indicador de carga; si la API está apagada, se muestra un mensaje que lo explica; a 375 píxeles de ancho no hay desplazamiento horizontal.
+
+#### Seguridad
+
+**S1-01 — Contraseñas**
+Dada la tabla `users`, cuando se revisa, entonces ninguna contraseña está en texto plano; solo Laravel genera hashes y la API solo los verifica con bcryptjs.
+
+**S2-01 — Secretos**
+Dado el historial de Git, cuando se revisa, entonces ningún archivo `.env` fue confirmado; los `.env.example` no tienen valores reales; `JWT_SECRET` tiene al menos 32 caracteres; y `Ventas2026` solo aparece en las semillas, el README y la colección de Postman.
+
+**S3-01 — Inyección SQL** (B3-03)
+Dada la búsqueda de clientes, cuando se envía `' OR 1=1 --`, entonces no se devuelven clientes ajenos ni se ejecuta SQL inyectado, porque la API usa parámetros `?` y el panel Eloquent o enlaces de parámetros.
+
+**S4-01 — Datos expuestos** (CA-13)
+Dada cualquier respuesta de la API, cuando se revisa en Postman, entonces no contiene hashes, `vendedor_id`, `user_id`, `supervisor_id` ni datos de otro vendedor.
+
+**S5-01 — Recursos ajenos** (CA-04, L5-01)
+Dada Valeria, cuando intenta leer o modificar un cliente de Diego, entonces recibe 404; dado Sergio Ruiz, cuando intenta editar un cliente del equipo de Sandra Pérez, entonces recibe 404.
+
+**S6-01 — CORS**
+Dada una página servida desde un origen distinto de `CORS_ORIGIN`, cuando llama a la API, entonces el navegador bloquea la respuesta; la configuración nunca usa `*`.
+
+**S7-01 — XSS**
+Dado un cliente llamado `<img src=x onerror=alert(1)>`, cuando aparece en la SPA o en el panel, entonces se muestra como texto y no ejecuta código.
+
+**S8-01 — Concurrencia** (B3-C1, B3-C2, B4-C1 a B4-C3)
+Dadas peticiones simultáneas contra la API, cuando compiten por tomar un cliente, por la cartera máxima, por un cambio de etapa, por un registro duplicado o por el mismo stock, entonces el resultado respeta la regla, el índice único es el árbitro final de los duplicados y el stock nunca queda negativo.
+
 ## 13. Semillas y cifras de control
 
 ### 13.1 VerificacionSeeder
 La semilla debe reproducir exactamente los datos establecidos en la sección 11 del enunciado oficial.
-Incluye usuarios, productos, clientes, oportunidades, historial y actividades.
-No se deben modificar sus registros ni las cifras esperadas.
+Incluye usuarios, productos, clientes, oportunidades, historial y actividades:
+- 7 cuentas: 1 administradora, 2 supervisores (Sergio Ruiz y Sandra Pérez) y 4 vendedores (Valeria y Diego en el equipo de Sergio; Carlos e Iván, desactivado, en el de Sandra). La contraseña de todas es `Ventas2026`.
+- 5 productos (uno desactivado) sin control de stock, de modo que la regla propia no afecta a las cifras de control.
+- 21 clientes: 3 de Valeria, 2 de Diego, 9 de Carlos, 1 de Iván y 6 disponibles.
+- 11 oportunidades con sus líneas y 43 registros de historial.
+- 4 actividades.
+
+Las fechas están en UTC. No se deben modificar sus registros ni las cifras esperadas.
 
 ### 13.2 SectorSeeder
 Contendrá datos propios de una distribuidora de maquillaje.
@@ -732,51 +968,140 @@ No debe generar conflictos con los correos, teléfonos, NIT ni límites de carte
 | Empresa | Octubre 2026 | 4 | Q22,450.00 | Q6,751.13 | — |
 Estas cifras aplican exclusivamente a la semilla oficial, sin modificaciones de prueba.
 
-## 14. Decisiones de diseño pendientes de aprobación
-Esta sección recoge decisiones que el enunciado deja a la pareja.
-Las propuestas siguientes no se consideran aprobadas hasta que ambas integrantes las revisen.
+## 14. Decisiones de diseño
+Esta sección responde las preguntas que el enunciado (sección 7) deja abiertas, más las decisiones de contrato que surgieron al implementar B3 y B4. Cada decisión indica la alternativa descartada y por qué.
+
+Estados:
+- **Decidida e implementada:** está en el código y probada; requiere la confirmación de ambas integrantes al aprobar esta versión de la especificación.
+- **Propuesta:** todavía no está implementada; la deciden ambas integrantes antes de la fase correspondiente.
+
+| Pregunta del enunciado | Decisión |
+|---|---|
+| ¿Qué transiciones del embudo permiten, además del mínimo? | D1 |
+| ¿Qué pasa con las oportunidades y actividades de un cliente reasignado? | D2 |
+| ¿Se puede liberar un cliente con oportunidades abiertas? | D3 |
+| ¿Qué pasa con la cartera de un vendedor desactivado? | D4 |
+| ¿Qué hace la API con campos que el contrato no lista? | D5 |
+| ¿Cuál es su regla propia? | D7 (sección 10) |
 
 ### D1. Transiciones de oportunidades
-**Propuesta:** permitir avanzar y retroceder una etapa entre las cuatro etapas abiertas; ganar únicamente desde negociación y perder desde cualquier etapa abierta.
-**Alternativa descartada propuesta:** permitir saltos libres entre etapas.
-**Motivo:** mantener un seguimiento comercial ordenado y auditable.
-**Estado:** Pendiente de aprobación.
+**Decisión:** entre las etapas abiertas se avanza o se retrocede una sola etapa; se pierde desde cualquier etapa abierta; se gana únicamente desde negociación.
+**Respuesta de la API a lo no permitido:**
+- Un salto no permitido (por ejemplo, prospecto → propuesta o prospecto → ganada) responde 422 con `errores.etapa`.
+- Una etapa que no existe responde 422 con `errores.etapa`.
+- Pedir la etapa en la que ya está responde 409 (D13).
+- Cualquier cambio sobre una oportunidad ganada o perdida responde 409.
+- Ganar sin productos responde 422 con `errores.etapa` (D14); ganar con stock insuficiente responde 409 (RP-1).
+
+**Alternativa descartada:** permitir saltos libres entre etapas.
+**Motivo:** mantener un seguimiento comercial ordenado y auditable; retroceder una etapa permite corregir un avance prematuro sin perder el historial.
+**Estado:** Decidida e implementada (B4).
 
 ### D2. Reasignación de clientes
 **Propuesta:** las oportunidades cerradas conservan el vendedor que realizó la venta. Las oportunidades abiertas y sus actividades se transfieren al nuevo responsable; las actividades históricas conservan el identificador del usuario que las registró cuando corresponda.
-**Alternativa descartada propuesta:** eliminar el historial o transferir el crédito de las ventas cerradas al nuevo vendedor.
-**Motivo:** conservar la trazabilidad comercial.
-**Estado:** Pendiente de aprobación y comprobación de compatibilidad con el modelo.
+**Alternativa descartada:** eliminar el historial o transferir el crédito de las ventas cerradas al nuevo vendedor.
+**Motivo:** conservar la trazabilidad comercial y las cifras de ventas por vendedor.
+**Estado:** Propuesta; la deciden ambas integrantes y la implementa la Parte A (L4).
 
 ### D3. Liberación de clientes
 **Propuesta:** no permitir liberar un cliente que tenga oportunidades abiertas hasta resolverlas o reasignarlas conforme al proceso aprobado.
-**Alternativa descartada propuesta:** liberar clientes con oportunidades abiertas sin responsable.
+**Alternativa descartada:** liberar clientes con oportunidades abiertas sin responsable.
 **Motivo:** evitar oportunidades comerciales sin seguimiento.
-**Estado:** Pendiente de aprobación.
+**Estado:** Propuesta; la deciden ambas integrantes y la implementa la Parte A (L4).
 
 ### D4. Desactivación de vendedores
-**Propuesta:** al desactivar una cuenta, bloquear su acceso inmediatamente; sus clientes pendientes de reasignación seguirán visibles para la administración y se redistribuirán según el procedimiento aprobado.
-**Alternativa descartada propuesta:** eliminar automáticamente los clientes, las oportunidades o los historiales.
+**Propuesta:** al desactivar una cuenta, su acceso se bloquea inmediatamente en ambas puertas; sus clientes quedan asignados y visibles para la administración hasta que se reasignen según el procedimiento aprobado.
+**Alternativa descartada:** eliminar automáticamente los clientes, las oportunidades o los historiales.
 **Motivo:** conservar los datos comerciales.
-**Estado:** Pendiente de aprobación; definir el comportamiento exacto de los registros abiertos.
+**Estado:** Propuesta; falta definir qué pasa con las oportunidades abiertas. El bloqueo inmediato ya está implementado en la API (B2 y B3).
 
 ### D5. Campos adicionales de la API
-**Decisión propuesta:** ignorar los campos del cuerpo que no aparecen en el contrato y nunca utilizarlos para modificar propiedades internas.
-**Alternativa descartada propuesta:** rechazar todo campo adicional con HTTP 422.
+**Decisión:** los campos del cuerpo que no aparecen en el contrato se ignoran y nunca se utilizan para modificar propiedades internas (`vendedor_id`, `precio_unitario`, `etapa` al crear, `total`…).
+**Alternativa descartada:** rechazar todo campo adicional con HTTP 422.
 **Motivo:** mantener compatibilidad con clientes HTTP sin permitir modificaciones no autorizadas.
-**Estado:** Pendiente de aprobación.
+**Estado:** Decidida e implementada (B2 a B4).
 
 ### D6. Filtros y parámetros desconocidos
-**Propuesta:** rechazar con HTTP 400 filtros o parámetros de consulta que no estén admitidos por la ruta.
-**Alternativa descartada propuesta:** ignorar parámetros de consulta desconocidos.
-**Motivo:** evitar consultas ambiguas.
-**Estado:** Pendiente de aprobación.
+**Decisión:** un parámetro de consulta que la ruta no admite, un parámetro repetido o un valor de filtro inexistente (por ejemplo `?etapa=cancelado`) responde 400. El mensaje es fijo y no repite lo enviado.
+**Alternativa descartada:** ignorar parámetros de consulta desconocidos.
+**Motivo:** evitar consultas ambiguas; coincide con el 400 del enunciado («un filtro o parámetro no existe»).
+**Estado:** Decidida e implementada (B3 y B4).
 
 ### D7. Regla propia del sector
-**Decisión propuesta:** control de stock suficiente para confirmar oportunidades ganadas y descuento automático dentro de una transacción.
-**Alternativa descartada propuesta:** permitir ventas sin comprobar existencias.
+**Decisión:** control de stock suficiente para confirmar oportunidades ganadas y descuento automático dentro de una transacción (sección 10).
+**Alternativa descartada:** permitir ventas sin comprobar existencias.
 **Motivo:** reducir errores de inventario y evitar vender cantidades no disponibles.
-**Estado:** Pendiente de aprobación formal por ambas integrantes y validación contra el núcleo obligatorio.
+**Estado:** Decidida e implementada en la API (B4). La columna `stock` y su CHECK los crea la Parte A.
+
+### D8. Tomar un cliente que ya tiene vendedor
+**Decisión:** responde 409, sea de otro vendedor o del mismo; un cliente inexistente responde 404.
+**Alternativa descartada:** responder 404 cuando el cliente es de otro vendedor.
+**Motivo:** el enunciado (R3) exige 409 al que pierde la carrera por un cliente; la existencia del cliente ya es visible en la lista de disponibles.
+**Estado:** Decidida e implementada (B3).
+
+### D9. Identificador de ruta inválido
+**Decisión:** un identificador que no es un entero positivo (`/clientes/abc`, `/oportunidades/0`) responde 404, sin consultar la base.
+**Alternativa descartada:** responder 400 por «parámetro inválido».
+**Motivo:** desde fuera, un id mal escrito y uno inexistente son lo mismo, y nunca debe responder 500.
+**Estado:** Decidida e implementada (B3 y B4).
+
+### D10. Precedencia de códigos sobre registros existentes
+**Decisión:** primero se comprueban la propiedad (404) y el estado cerrado (409), y después los campos del cuerpo (422) (sección 8.7).
+**Alternativa descartada:** validar los campos antes de consultar el registro.
+**Motivo:** el enunciado exige que lo ajeno responda 404 y que una oportunidad cerrada responda 409 a cualquier intento de modificación.
+**Estado:** Decidida e implementada (B4).
+
+### D11. Forma del listado de oportunidades
+**Decisión:** `GET /oportunidades` devuelve resúmenes `{ id, cliente, titulo, etapa, probabilidad, total, fecha_cierre }`, sin productos ni historial.
+**Alternativa descartada:** devolver el detalle completo de cada oportunidad.
+**Motivo:** el enunciado indica que el resumen de la lista no trae productos ni historial; el tablero no los necesita.
+**Estado:** Decidida e implementada (B4).
+
+### D12. Catálogo para vendedores
+**Decisión:** `GET /productos` devuelve solo productos activos con `{ id, nombre, precio, stock }`.
+**Alternativa descartada:** ocultar el stock al vendedor.
+**Motivo:** permite avisar en la SPA de la disponibilidad antes de intentar ganar; `stock: null` indica que no hay control de inventario.
+**Estado:** Decidida e implementada (B4).
+
+### D13. Repetir la etapa actual
+**Decisión:** pedir la etapa en la que ya está la oportunidad responde 409.
+**Alternativa descartada:** tratarlo como transición no permitida (422).
+**Motivo:** en dos peticiones simultáneas con la misma transición, la segunda choca con el estado que dejó la primera; es un conflicto, no un dato inválido.
+**Estado:** Decidida e implementada (B4).
+
+### D14. Errores al crear oportunidades y agregar productos
+**Decisión:**
+- Un `cliente_id` ajeno, disponible o inexistente responde 422 con `errores.cliente_id` y el mismo mensaje en todos los casos.
+- Un `producto_id` inexistente o inactivo responde 422 con `errores.producto_id`.
+- Ganar sin productos responde 422 con `errores.etapa`.
+
+**Alternativa descartada:** responder 404 para los identificadores del cuerpo.
+**Motivo:** el 404 corresponde al recurso de la ruta; un valor incorrecto en el cuerpo es un error de validación, y el mismo mensaje no revela si el cliente existe.
+**Estado:** Decidida e implementada (B4).
+
+### D15. Productos desactivados después de agregarlos
+**Decisión:** una línea cuyo producto se desactivó después de agregarla puede editarse y la oportunidad puede ganarse si hay stock suficiente.
+**Alternativa descartada:** bloquear la edición o la venta.
+**Motivo:** R6 solo prohíbe agregar productos inactivos; el precio ya quedó guardado en la línea.
+**Estado:** Decidida e implementada (B4).
+
+### D16. Edición parcial y campos de cliente
+**Decisión:**
+- Un `PATCH` sin ningún campo editable responde 400.
+- La búsqueda `q` admite como máximo 100 caracteres; más larga, 400.
+- El correo es opcional, con formato básico y un máximo de 150 caracteres; `null` o `''` lo dejan vacío.
+- El nombre es obligatorio, de 1 a 150 caracteres.
+- Los textos se miden en caracteres (como MySQL) y se recortan los espacios de los extremos.
+
+**Alternativa descartada:** devolver 200 sin cambios ante un `PATCH` vacío.
+**Motivo:** una petición sin nada que actualizar no se puede interpretar.
+**Estado:** Decidida e implementada (B3 y B4).
+
+### D17. Orden de bloqueos
+**Decisión:** toda escritura de la API bloquea en el mismo orden: vendedor → cliente → oportunidad → líneas → productos por id ascendente. El bloqueo del vendedor vuelve a exigir que la cuenta esté activa.
+**Alternativa descartada:** bloquear cada fila en el orden en que la necesita cada operación.
+**Motivo:** un orden único evita interbloqueos entre operaciones simultáneas. El panel debe respetar el mismo orden al asignar clientes o modificar el stock.
+**Estado:** Decidida e implementada en la API (B3 y B4). La Parte A debe adoptarlo.
 
 ## 15. Responsabilidades de implementación
 ### Parte A
@@ -818,24 +1143,27 @@ Responsable de:
 - Comprender las tres partes para la defensa oral.
 
 ## 16. Proceso de desarrollo
-El proyecto seguirá cuatro etapas:
+El proyecto seguirá cuatro etapas: especificación, planificación, implementación y verificación.
 
 ### 16.1 Especificación
 Definir requisitos, reglas, criterios, contratos y decisiones.
-El documento aprobado se identificará mediante la etiqueta Git `spec-v1`.
+El documento aprobado se identificará mediante la etiqueta Git `spec-v1`; el historial debe mostrar que el código de implementación llegó después de esa etiqueta.
+Las correcciones posteriores aprobadas por ambas integrantes se marcan con una nueva etiqueta (por ejemplo `spec-v1.1`).
+Cuando el catedrático publique un cambio de requisito, se actualiza esta especificación con la etiqueta `spec-v2`, se planifica el cambio y se implementa sin romper lo que ya funcionaba. Las migraciones existentes no se editan: el cambio llega con migraciones nuevas.
 
 ### 16.2 Planificación
-Registrar en `docs/plan.md`:
+Registrar en `docs/plan.md`, y actualizar antes de cada fase:
 - Arquitectura.
+- Estructura.
 - Fases.
 - Tareas.
 - Responsables.
 - Dependencias.
-- Instrucciones al agente.
+- Instrucciones al agente en cada fase.
 
 ### 16.3 Implementación
 Cada integrante desarrollará su parte siguiendo las especificaciones.
-Se utilizarán ramas de Git y commits descriptivos.
+Se utilizarán ramas de Git y commits descriptivos de ambas integrantes, repartidos a lo largo del proyecto.
 Los cambios se revisarán antes de integrarse.
 
 ### 16.4 Verificación
@@ -847,17 +1175,31 @@ Se comprobarán:
 - Cifras de control.
 - Regla propia.
 - Integración Laravel–API–SPA.
-Se registrará evidencia en `docs/verificacion.md`.
+
+`docs/verificacion.md` contendrá:
+- La matriz que une cada criterio de aceptación con su evidencia.
+- El resultado de las pruebas de seguridad, incluidas las de peticiones simultáneas.
+- Las cifras de control obtenidas con `VerificacionSeeder`.
+- La bitácora de IA (sección 17).
+
+### 16.5 Documentación y entrega
+- El README incluye la tabla de endpoints y los pasos exactos para levantar MySQL, Laravel, la API y la SPA desde cero.
+- `docs/api.postman_collection.json` incluye al menos una petición por endpoint, los casos de error principales y la prueba de la regla propia.
+- La entrega es el commit de la etiqueta `entrega-final`, en un repositorio accesible para el catedrático. Lo que no está en ese commit no se considera entregado.
+- En la defensa, las tres piezas corren con la base cargada solo con `VerificacionSeeder` (`php artisan migrate:fresh --seeder=VerificacionSeeder`), con Postman abierto y el repositorio en la etiqueta `entrega-final`.
 
 ## 17. Uso de inteligencia artificial
 Los agentes deberán seguir las instrucciones establecidas en `CLAUDE.md`.
 Las especificaciones y el plan son la fuente de verdad de las tareas.
 Los agentes no deben inventar requisitos ni modificar contratos aprobados.
 Los hooks y subagentes son herramientas adicionales de protección y revisión; no reemplazan las pruebas.
-La bitácora de IA documentará al menos tres casos reales de errores, propuestas inseguras o desviaciones de la especificación, indicando:
+Todo el código entregado es responsabilidad de la pareja, lo haya escrito una persona o un agente: cada integrante debe poder explicarlo y modificarlo en la defensa.
+
+La bitácora de IA forma parte de `docs/verificacion.md`. Documenta al menos tres casos reales en los que el agente propuso algo incorrecto, inseguro o distinto de la especificación, indicando:
 - Qué propuso el agente.
 - Por qué era incorrecto.
 - Cómo se detectó.
 - Qué corrección se realizó.
 - Qué commit contiene la corrección.
-Cada que se realice un cambio debe de guardarse en la bitacora de IA.
+
+Se registran errores reales del agente, no cada cambio del proyecto. No se inventan errores ni resultados. Mientras se trabaja, los casos se llevan en `docs/bitacora-ia.md` y deben trasladarse o enlazarse desde `docs/verificacion.md` antes de la entrega.

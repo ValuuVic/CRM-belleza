@@ -17,6 +17,7 @@ El proyecto se desarrolla entre dos integrantes mediante especificaciones, plani
 - `docs/plan.md` contiene las fases y tareas de implementación.
 - `docs/verificacion.md` registra las pruebas y sus resultados.
 - El enunciado del proyecto establece los requisitos obligatorios y el contrato de la API.
+- Si `docs/especificacion.md` no fija la forma de una respuesta, se usa la del ejemplo del enunciado (sección 8): las pruebas automáticas del catedrático comparan contra ella.
 - Si falta una decisión en la especificación, pregunta antes de implementarla.
 - No inventes requisitos, tablas, columnas, endpoints ni reglas de negocio.
 - No escribas código de implementación si no existe la etiqueta Git `spec-v1`.
@@ -117,6 +118,8 @@ Responsable de:
 - Los errores generales utilizan `{ "error": "mensaje" }`.
 - Los errores de validación 422 utilizan `{ "errores": { "campo": "mensaje" } }`.
 - Los errores 500 no deben revelar información interna.
+- En el detalle de una oportunidad, `historial[].usuario` es el nombre de quien hizo el cambio, como texto (`"Valeria López"`), nunca su id (enunciado §8 y R8).
+- Un NIT compacto tiene entre 2 y 12 caracteres (enunciado R4; `clientes.nit` es VARCHAR(12)). Uno más largo responde 422 en `errores.nit`.
 - Configura CORS exclusivamente mediante `process.env.CORS_ORIGIN`.
 - Nunca utilices CORS abierto con `*`.
 
@@ -132,6 +135,8 @@ Responsable de:
 - Nunca devuelvas datos de otro vendedor.
 - No publiques archivos `.env`.
 - No agregues secretos ni contraseñas al repositorio.
+- La contraseña pública de la semilla (`Ventas2026`) solo puede aparecer en las semillas, en el README y en la colección de Postman (enunciado §11 y S2).
+- Los archivos `.env.example` no contienen valores reales.
 - Usa transacciones y bloqueos cuando existan operaciones concurrentes.
 
 ## 8. SPA del vendedor
@@ -152,7 +157,10 @@ Responsable de:
 - `productos.stock` es `INT NULL`.
 - `NULL` significa que no se controla inventario.
 - Se aplica `CHECK (stock IS NULL OR stock >= 0)`.
-- Antes de cambiar una oportunidad a `ganada`, debe comprobarse la disponibilidad de los productos, si todos los productos estan disponibles entonces se cambia a `ganada` si falta mas de algun producto o las cantidades no son las solicitadas entonces pasa a estar en `negociacion` si el cliente no lo quiere entonces pasa al estado `cancelado`.
+- Antes de cambiar una oportunidad a `ganada` (solo permitido desde `negociacion`), debe comprobarse la disponibilidad de todos los productos con inventario controlado.
+- Si todos tienen stock suficiente, la oportunidad pasa a `ganada` y se descuentan las cantidades.
+- Si algún producto no tiene stock suficiente, se responde HTTP 409 y la oportunidad permanece en `negociacion`, sin cambios en el inventario ni en el historial.
+- Si el cliente no desea continuar, la oportunidad se marca como `perdida` con un motivo de 1 a 255 caracteres. No existe un estado `cancelado`: las únicas etapas son las seis de R5.
 - La validación y el descuento se ejecutan dentro de una misma transacción.
 - Utiliza `SELECT ... FOR UPDATE`.
 - Si el inventario es insuficiente, responde HTTP 409.
@@ -223,7 +231,8 @@ Cuando estén disponibles en `.claude/agents/`, utiliza los siguientes subagente
 - Incluye pruebas de autenticación, permisos, validaciones y concurrencia.
 - No modifiques la semilla oficial para conseguir resultados favorables.
 - No afirmes que una prueba pasó sin ejecutarla.
-- Registra los resultados en `docs/verificacion.md`.
+- Registra los resultados en `docs/verificacion.md`: la matriz que une cada criterio con su evidencia, las pruebas de seguridad y concurrencia y las cifras de control (enunciado P3).
+- La colección de Postman se entrega en `docs/api.postman_collection.json`, con al menos una petición por endpoint, los errores principales y la prueba de la regla propia (enunciado A8).
 - Las pruebas que cambien datos deben ejecutarse en una base de pruebas que pueda restablecerse.
 
 ## 14. Cifras oficiales de verificación
@@ -250,6 +259,7 @@ Las cifras deben coincidir entre las respuestas de la API y los reportes corresp
 ## 16. Bitácora de inteligencia artificial
 
 - Registra errores reales del agente.
+- El enunciado (P5) pide la bitácora dentro de `docs/verificacion.md`. Mientras tanto se lleva en `docs/bitacora-ia.md`; antes de la entrega debe trasladarse o enlazarse desde `docs/verificacion.md`, con al menos tres casos y su commit de corrección.
 - Documenta qué propuso, por qué era incorrecto, cómo se detectó y qué corrección se realizó.
 - Incluye el commit de corrección cuando exista.
 - Los bloqueos de hooks pueden documentarse como evidencia si corresponden a problemas reales.

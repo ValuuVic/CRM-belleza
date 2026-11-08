@@ -28,6 +28,8 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-08 | 2026-11-08 | B | Hooks · `revisar-cambio.mjs` | Corregido | Pendiente (sin commit) |
 | IA-09 | 2026-11-08 | B | B2 · `api/src/rutas/auth.js` y SPA | Corregido | Pendiente (sin commit) |
 | IA-10 | 2026-11-08 | B | B3 · plan y `api/test/ayuda/bd-simulada.js` | Corregido | Pendiente (sin commit) |
+| IA-11 | 2026-11-08 | B | B4 · rutas, pruebas de concurrencia y SPA de oportunidades | Corregido | Pendiente (sin commit) |
+| IA-12 | 2026-11-08 | B | `docs/especificacion.md` y `api/test/integracion-b3.test.js` (lectura del enunciado) | Corregido | Pendiente (sin commit) |
 
 ---
 
@@ -331,5 +333,64 @@ Prueba de regresión `RC8` en `.claude/hooks/pruebas/hooks.test.mjs`. Las prueba
 - **Alcance:** el error estaba solo en la base simulada de pruebas y de la demo; el código de la API no cambió. Con MySQL real, el autoincremento lo gestiona InnoDB.
 
 **Verificación.** `npm test` en `api/` da 179 pruebas, 161 superadas, 0 fallidas, 8 omitidas y 10 `todo`; las omitidas y las `todo` dependen de I1. `node --test frontend/test/*.test.js` da 47 de 47, y las pruebas de los hooks, 34 de 34.
+
+**Commit.** Pendiente (sin commit).
+
+---
+
+## IA-11 — Errores del agente en la fase B4 (oportunidades, etapas y stock)
+
+**1. Pruebas de B4-C2 que no comprobaban los bloqueos de producto.**
+- **Propuesta:** en `api/test/concurrencia-oportunidades.test.js`, todas las oportunidades que competían por el mismo stock pertenecían a la misma vendedora.
+- **Por qué era incorrecto:** al añadir el bloqueo del vendedor al inicio de cada escritura (punto 3), ese bloqueo serializaba todas las peticiones de la prueba. Las pruebas pasaban aunque faltaran los bloqueos `FOR UPDATE` de los productos, que son los que protegen la venta entre vendedores distintos. En la realidad dos vendedores sí pueden competir por la misma existencia.
+- **Detección:** el agente ejecutó las pruebas contra una variante de la base simulada sin bloqueos de oportunidad ni de producto y sin las condiciones `WHERE etapa = ?` y `stock >= ?`: las 10 pruebas pasaron, lo que demostró que no medían lo que debían.
+- **Corrección:** las ventas que compiten por stock (última unidad, ocho ventas sobre stock 7, productos compartidos en orden distinto) pertenecen ahora a dos vendedores. Con la misma variante fallan las 3 pruebas de B4-C2; sin ningún bloqueo fallan 6 (por ejemplo, 10 cambios de etapa simultáneos dan 10×200). Con la implementación real pasan las 10.
+
+**2. Validación de campos antes de comprobar propiedad y estado.**
+- **Propuesta:** en `api/src/rutas/oportunidades.js`, el cuerpo se validaba antes de abrir la transacción y bloquear la oportunidad.
+- **Por qué era incorrecto:** un cuerpo no válido sobre una oportunidad ganada o perdida respondía 422 en lugar del 409 que exigen CA-10 y B4-19, y sobre una oportunidad ajena respondía 422 en lugar del 404 de R2.
+- **Detección:** lo señaló el subagente `revisor-contrato` (discrepancias D-1 y D-2).
+- **Corrección:** en título, etapa y líneas, los campos se validan dentro de la transacción, después de `bloquearOportunidadPropia` (404 y 409). Pruebas nuevas en `oportunidades.test.js` (B4-19): cerrada con cuerpo no válido → 409; ajena con cuerpo no válido → 404.
+
+**3. Orden de bloqueos invertido al crear una oportunidad.**
+- **Propuesta:** `POST /api/oportunidades` bloqueaba primero el cliente (`FOR UPDATE`) y, al insertar, tomaba implícitamente el bloqueo de la fila del vendedor por la clave foránea.
+- **Por qué era incorrecto:** B3 bloquea en el orden vendedor → cliente al tomar un cliente. Si el mismo vendedor tomaba un cliente y creaba una oportunidad sobre él a la vez, InnoDB podía detectar un interbloqueo (1213) y una de las dos respondería 500. Además, una cuenta desactivada entre el middleware y la transacción podía completar escrituras de oportunidades, a diferencia de B3.
+- **Detección:** lo señaló el subagente `revisor-seguridad` (hallazgos 1 y 7).
+- **Corrección:** `bloquearVendedor` pasó de `rutas/clientes.js` a `servicios/vendedores.js`, con el orden global documentado (vendedor → cliente → oportunidad → líneas → productos). Todas las escrituras de B4 empiezan con él y exigen vendedor activo (401 si no). Pruebas nuevas: cuenta desactivada a mitad de petición → 401 sin cambios en las seis escrituras; crear bloquea vendedor y luego cliente; toma y creación simultáneas terminan sin interbloqueo. La base simulada no modela los bloqueos implícitos de las claves foráneas, así que el interbloqueo real solo se puede confirmar con InnoDB (I1).
+
+**4. Mensaje de stock insuficiente fuera de la vista.**
+- **Propuesta:** en el detalle de una oportunidad, el mensaje del resultado de cada acción se mostraba solo en la parte superior.
+- **Por qué era incorrecto:** al pulsar «Marcar como ganada», la usuaria está desplazada hasta los botones de etapa; el 409 por stock insuficiente aparecía arriba, fuera de la pantalla, y parecía que no había pasado nada (B4-25).
+- **Detección:** verificación en el navegador integrado con la API de demostración: el mensaje existía en la página, pero `getBoundingClientRect()` mostraba que no estaba visible.
+- **Corrección:** el aviso tiene `id="mensaje-detalle"` y `tabindex="-1"`; `app.js` le da el foco y lo centra en pantalla cuando aparece un mensaje nuevo, lo que además lo anuncia a los lectores de pantalla. Comprobado de nuevo en el navegador: el mensaje queda enfocado y visible.
+
+**Verificación.** `npm test` en `api/` da 285 pruebas, 254 superadas, 0 fallidas, 13 omitidas y 18 `todo`; las omitidas y las `todo` dependen de I1 e I3. `node --test frontend/test/*.test.js` da 73 de 73, y las pruebas de los hooks, 34 de 34.
+
+**Commit.** Pendiente (sin commit).
+
+---
+
+## IA-12 — Semilla oficial mal leída del PDF del enunciado
+
+**Propuesta del agente.**
+Al completar `docs/especificacion.md` con el enunciado oficial (`Proyecto_Final_CRM_Enunciado (2).pdf`), el agente extrajo el texto del PDF con `pdftotext -layout` y contó los clientes de la semilla a partir de ese texto. Concluyó que había 9 clientes disponibles y afirmó que la spec de B3 («seis disponibles», B3-04) estaba equivocada. En consecuencia:
+- escribió «9 disponibles» en el criterio A3-01 de la especificación;
+- cambió la prueba `api/test/integracion-b3.test.js` para esperar 9;
+- en el resumen de `VerificacionSeeder` (§13.1) puso 8 cuentas y 12 oportunidades.
+
+**Por qué era incorrecto.**
+En el texto extraído con `-layout`, las etiquetas de la primera columna (vendedor) quedaron desplazadas respecto de sus filas. Tres clientes de Carlos Ajú (Tienda La Bendición, Distribuidora Occidente y Rosa Tax) parecían ser de Iván Toj o estar sin asignar, y el cliente de Iván (Hotel Los Pinos) parecía disponible. Las cifras reales del enunciado son: Carlos con 9 clientes (como confirman las cifras de control, «9 de 10»), Iván con 1 y 6 disponibles; 7 cuentas y 11 oportunidades. La spec de B3 era correcta y el agente había «corregido» una prueba que estaba bien.
+
+**Cómo se detectó.**
+El propio agente desconfió del resultado porque contradecía las cifras de control («Carlos 9 de 10») y porque los teléfonos seguían series consecutivas que no encajaban con la agrupación leída (`77651001` … `30001009` para un mismo vendedor). Volvió a leer el PDF con la detección de tablas de PyMuPDF (`find_tables`), que conserva la estructura de filas y columnas, y comprobó la agrupación real de clientes, cuentas y oportunidades.
+
+**Corrección.**
+- Se revirtió la prueba de integración de B3 a 6 disponibles (solo quedó una aclaración en el comentario).
+- El criterio A3-01 de `docs/especificacion.md` dice 6 disponibles.
+- El resumen de §13.1 dice 7 cuentas (1 administradora, 2 supervisores y 4 vendedores), 21 clientes (3, 2, 9 y 1, más 6 disponibles), 11 oportunidades, 43 registros de historial y 4 actividades.
+
+**Lección.** Para leer tablas de un PDF no basta la extracción de texto plano: hay que usar una herramienta que respete la estructura de la tabla o contrastar el resultado con otros datos del mismo documento (aquí, las cifras de control) antes de cambiar especificaciones o pruebas.
+
+**Verificación.** `npm test` en `api/` da 255 superadas y 0 fallidas tras la corrección (la prueba de integración afectada se omite hasta I1, pero su valor esperado coincide con la semilla oficial).
 
 **Commit.** Pendiente (sin commit).

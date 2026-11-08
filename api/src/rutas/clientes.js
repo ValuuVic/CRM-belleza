@@ -10,8 +10,9 @@
 import { Router } from 'express';
 import { crearAutenticacion } from '../middleware/auth.js';
 import { conTransaccion } from '../utils/transaccion.js';
-import { ErrorHttp, conflicto, noEncontrado, peticionInvalida } from '../utils/errores.js';
-import { exigirCuerpoObjeto, idValido, validarCliente } from '../utils/validaciones.js';
+import { conflicto, noEncontrado, peticionInvalida } from '../utils/errores.js';
+import { bloquearVendedor } from '../servicios/vendedores.js';
+import { CAMPOS_CLIENTE, exigirConsulta, exigirCuerpoObjeto, idValido, validarCliente } from '../utils/validaciones.js';
 
 export const MAXIMO_CARTERA = 10; // R3
 export const LONGITUD_MAXIMA_BUSQUEDA = 100;
@@ -21,10 +22,6 @@ const MENSAJE_CARTERA_LLENA = `Su cartera ya tiene el máximo de ${MAXIMO_CARTER
 const MENSAJE_NO_DISPONIBLE = 'El cliente ya no está disponible';
 
 const SQL_CLIENTE_POR_ID = 'SELECT id, nombre, nit, telefono, correo FROM clientes WHERE id = ?';
-// El bloqueo vuelve a exigir vendedor activo: una cuenta desactivada o borrada entre el
-// middleware y la transacción no puede crear ni tomar clientes (A2, CA-03) → 401.
-const SQL_BLOQUEAR_VENDEDOR = "SELECT id FROM users WHERE id = ? AND rol = 'vendedor' AND activo = 1 FOR UPDATE";
-const MENSAJE_NO_AUTENTICADO = 'Autenticación requerida o sesión no válida';
 const SQL_CONTAR_CARTERA = 'SELECT COUNT(*) AS n FROM clientes WHERE vendedor_id = ?';
 
 /**
@@ -41,18 +38,6 @@ export function serializarCliente(fila) {
   };
 }
 
-/**
- * Parámetros de consulta admitidos por la ruta (decisión D6 propuesta, confirmada para B3):
- * cualquier otro parámetro o un parámetro repetido → 400.
- */
-function exigirConsulta(req, admitidos = []) {
-  for (const [clave, valor] of Object.entries(req.query ?? {})) {
-    // Mensajes fijos: no se repite en la respuesta el nombre enviado por el cliente.
-    if (!admitidos.includes(clave)) throw peticionInvalida('Parámetro de consulta no admitido');
-    if (typeof valor !== 'string') throw peticionInvalida('Cada parámetro de consulta debe indicarse una sola vez');
-  }
-}
-
 /** Identificador de cliente de la ruta; si no es un entero positivo → 404 sin consultar (B3-06). */
 function idDeRuta(req) {
   const id = idValido(req.params.id);
@@ -64,17 +49,10 @@ function idDeRuta(req) {
 const escaparLike = (texto) => texto.replace(/[!%_]/g, (c) => `!${c}`);
 
 /**
- * Bloquea la fila del vendedor y comprueba que su cartera no esté llena (R3, S8).
- * Debe llamarse dentro de una transacción, antes de insertar o asignar un cliente.
- * IMPORTANTE: el bloqueo debe ser la PRIMERA lectura de la transacción. COUNT(*) es una lectura
- * consistente sin bloqueo; en REPEATABLE READ la instantánea se fija en la primera lectura normal.
- * Si hubiera un SELECT normal antes del bloqueo, el conteo podría ser antiguo y superar el límite.
+ * Comprueba que la cartera no esté llena (R3, S8). Debe llamarse después de bloquearVendedor
+ * (servicios/vendedores.js): COUNT(*) es una lectura sin bloqueo y solo es fiable si el bloqueo
+ * del vendedor fue la primera lectura de la transacción.
  */
-async function bloquearVendedor(conn, vendedorId) {
-  const [filas] = await conn.execute(SQL_BLOQUEAR_VENDEDOR, [vendedorId]);
-  if (!filas[0]) throw new ErrorHttp(401, MENSAJE_NO_AUTENTICADO);
-}
-
 async function comprobarEspacio(conn, vendedorId) {
   const [[{ n }]] = await conn.execute(SQL_CONTAR_CARTERA, [vendedorId]);
   if (Number(n) >= MAXIMO_CARTERA) throw conflicto(MENSAJE_CARTERA_LLENA);
@@ -165,16 +143,24 @@ export function crearRutasClientes({ pool }) {
   router.patch('/:id', async (req, res) => {
     const id = idDeRuta(req);
     exigirConsulta(req);
-    const datos = validarCliente(exigirCuerpoObjeto(req), { parcial: true });
+    const cuerpo = exigirCuerpoObjeto(req);
+    // Sin ningún campo editable no hay nada que actualizar → 400 (D16), antes de consultar la base.
+    if (!CAMPOS_CLIENTE.some((c) => Object.hasOwn(cuerpo, c) && cuerpo[c] !== undefined)) {
+      throw peticionInvalida('Indique al menos un campo para actualizar: nombre, nit, telefono o correo');
+    }
     const vendedorId = req.vendedor.id;
-    const tiene = (campo) => (Object.hasOwn(datos, campo) ? 1 : 0);
 
     const cliente = await conTransaccion(async (conn) => {
+      // Orden global de bloqueos (D17): vendedor activo → cliente.
+      await bloquearVendedor(conn, vendedorId);
       const [propias] = await conn.execute(
         'SELECT id FROM clientes WHERE id = ? AND vendedor_id = ? FOR UPDATE',
         [id, vendedorId],
       );
       if (!propias[0]) throw noEncontrado(MENSAJE_NO_ENCONTRADO);
+      // Los campos se validan después de comprobar la propiedad: lo ajeno siempre da 404 (D10, §8.7).
+      const datos = validarCliente(cuerpo, { parcial: true });
+      const tiene = (campo) => (Object.hasOwn(datos, campo) ? 1 : 0);
       // SQL fijo: cada columna se actualiza solo si su bandera es 1; si no, conserva su valor.
       await conn.execute(
         'UPDATE clientes SET nombre = IF(?, ?, nombre), nit = IF(?, ?, nit), telefono = IF(?, ?, telefono), correo = IF(?, ?, correo), updated_at = UTC_TIMESTAMP() WHERE id = ? AND vendedor_id = ?',
