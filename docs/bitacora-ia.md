@@ -23,6 +23,7 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-03 | 2026-11-07 | B | Hooks · `revisar-cambio.mjs` / `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
 | IA-04 | 2026-11-07 | B | Hooks · `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
 | IA-05 | 2026-11-07 | B | Pruebas de los hooks | Corregido | `2312f37` |
+| IA-07 | 2026-11-08 | B | Hooks · `vigilar-bash.mjs` | Corregido | Pendiente (sin commit) |
 
 ---
 
@@ -155,3 +156,49 @@ Se añadió `PA5b`: en el repositorio real, con `spec-v1` y `CRM_PARTE=B`, escri
 Resultado final: `node --test` con 30 pruebas, 30 superadas y 0 fallidas.
 
 **Commit.** `2312f37` (configurar hooks y pruebas de claude code).
+
+---
+
+## IA-07 — Falsos positivos de `vigilar-bash.mjs` con `npm install | …` y con la palabra "del"
+
+**Descripción.**
+Durante B1, el hook pidió confirmación para tres comandos inofensivos:
+1. `npm install 2>&1 | tail -5`, que reinstala las dependencias ya declaradas, se trató como "paquete nuevo".
+2. Dos comandos de solo lectura que contenían el texto "registros del hook" y la ruta `.claude/hooks` se trataron como "modificación de la configuración de hooks".
+
+**Propuesta del agente.**
+En la configuración de los hooks, el agente detectó instalaciones y escrituras con expresiones regulares sobre el texto completo del comando:
+
+```js
+/\b(npm|pnpm|yarn|bun)\s+(i|install|add)\s+(?!-)[^\s]/i      // "paquete nuevo"
+/(>{1,2}|\btee\b|…|\brm\b|\bdel\b|\bcopy\b|\bmove\b|…)/i      // "escribe archivos"
+```
+
+**Por qué era incorrecto.**
+1. Tras retirar `2>&1`, en `npm install  | tail -5` el primer carácter después de `install` es `|`, y la expresión lo tomaba por el nombre de un paquete.
+2. `\bdel\b`, `\bcopy\b`, `\bmove\b`, `>`… coincidían en cualquier parte del texto: dentro de comillas (`echo "registros del hook"`), en rutas o en argumentos. Bastaba que el comando mencionara también `.claude/hooks` o `laravel/` para pedir confirmación o bloquear.
+3. Al revisar el código apareció un tercer defecto: la confirmación de Git terminaba el análisis antes de comprobar las escrituras, así que `git checkout -- laravel/routes/web.php` solo pedía confirmación, cuando para la Parte B debe bloquearse.
+
+**Cómo se detectó.**
+Al revisar `.claude/bloqueos.log` al final de B1 aparecieron confirmaciones (`ask`) que no correspondían a ninguna operación de riesgo. El agente reprodujo los casos llamando directamente al hook: `npm install 2>&1 | tail -5` → `ask` y `npm install` → permitido. El tercer defecto lo detectó la prueba de regresión `VB9`, que esperaba `deny` y obtuvo `ask`.
+
+**Corrección** (solo en `.claude/hooks/vigilar-bash.mjs` y en sus pruebas):
+- **Análisis por segmentos** (`segmentos`, `recorrer`): el comando se divide por `;`, `&&`, `||`, `|`, `&`, saltos de línea y paréntesis, **sin cortar dentro de comillas**. Se omite el cuerpo de los heredocs (`sinHeredocs`), tanto para buscar comandos como para buscar rutas de destino. Se entra en `bash -c`, `sh -c`, `powershell -Command` y `cmd /c`.
+- **Escrituras** (`escribeArchivos`): un comando de escritura (`rm`, `del`, `copy`, `Set-Content`, …) solo cuenta si es el **comando** del segmento, es decir, su primera palabra tras las asignaciones `VAR=valor`. También cuentan `sed -i` y `perl -i`, `git checkout|restore|mv|rm|apply`, y una redirección `>` o `>>` fuera de comillas (`=>` y `->` no cuentan).
+- **Instalaciones** (`instalaciones`): solo son paquetes nuevos los argumentos posicionales que siguen a `install`, `i` o `add` dentro del mismo segmento. Los ORM prohibidos se comparan con el nombre exacto de cada paquete, y también en `npx`.
+- **Decisión final**: se reúnen todos los hallazgos (reglas, Git, dependencias y escrituras) y una prohibición pesa siempre más que una confirmación.
+- Las reglas de operaciones peligrosas **no cambian** y siguen analizando el comando completo, heredocs incluidos: archivos de entorno, variables de entorno, omisión de hooks, SQL destructivo, volúmenes de Docker, `migrate:fresh`, borrado recursivo y Git. Lo comprobó un bloqueo real: el agente intentó escribir esta misma entrada con un heredoc que citaba esas reglas, y el hook lo bloqueó por mencionar la omisión de hooks. La entrada se escribió con la herramienta de edición.
+
+**Verificación.**
+- Pruebas de regresión nuevas en `.claude/hooks/pruebas/hooks.test.mjs`:
+  - `VB7`: 12 casos de `npm install` sin paquetes permitidos, 10 que piden confirmación y 7 prohibidos.
+  - `VB8`: 10 comandos con "del", "copy", "move", "rm -f" o `>` en textos o rutas, todos permitidos.
+  - `VB9`: 11 escrituras reales en `laravel/` o en archivos de la Parte A bloqueadas, 6 escrituras en la configuración de hooks que piden confirmación, y un heredoc cuyo contenido menciona `del laravel/…`, que se permite.
+- Resultado: `node --test .claude/hooks/pruebas/hooks.test.mjs` da 33 pruebas, 33 superadas y 0 fallidas.
+- Comprobación en una sesión real de Claude Code, con los hooks activos:
+  - `npm install 2>&1 | tail -2` → se ejecuta sin confirmación;
+  - `echo "--- registros del hook"; ls .claude/hooks` → se ejecuta sin confirmación;
+  - `npm install sequelize --dry-run 2>&1 | tail -2` → bloqueado;
+  - `npm install supertest --dry-run 2>&1 | tail -2` → pide confirmación (registrada en `.claude/bloqueos.log`). Con `--dry-run` no se instaló nada.
+
+**Commit.** Pendiente (sin commit).
