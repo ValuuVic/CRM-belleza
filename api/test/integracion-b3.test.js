@@ -92,11 +92,11 @@ describe('B3 integración con la semilla oficial (I1)', () => {
   });
 
   // Requieren una base de pruebas restablecible (modifican datos):
-  test.todo('B3-08: NIT duplicado en formato equivalente → 409 por el índice único real');
+  test.todo('B3-08: NIT duplicado en formato equivalente → 409 por el índice único real (simultáneo: npm run concurrencia, B6-16)');
   test.todo('B3-09: alta con nit "cf" y telefono "+502 5555 1234" → 201, NIT NULL en MySQL');
   test.todo('B3-11: Valeria toma un cliente disponible → 200; Diego lo intenta después → 409');
   test.todo('B3-12: Carlos (9 clientes) registra uno → 201 (10); otro → 409 y sigue en 10');
   test.todo('B3-13: PATCH solo telefono sobre un cliente propio → solo cambia ese campo en MySQL');
-  test.todo('B3-C1: 10 tomas simultáneas de Valeria y Diego → 1×200, 9×409, un solo dueño (InnoDB real)');
-  test.todo('B3-C2: Carlos con 9 y 3 altas simultáneas → 1×201, 2×409, termina con 10 (InnoDB real)');
+  test.todo('B3-C1: 10 tomas simultáneas de Valeria y Diego → 1×200, 9×409, un solo dueño (InnoDB real; se cubrirá con npm run concurrencia, B6-14)');
+  test.todo('B3-C2: Carlos con 9 y 3 altas simultáneas → 1×201, 2×409, termina con 10 (InnoDB real; se cubrirá con npm run concurrencia, B6-15)');
 });

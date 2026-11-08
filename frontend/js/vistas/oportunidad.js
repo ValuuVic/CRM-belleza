@@ -7,7 +7,7 @@
 import { escaparHtml } from '../util/escape.js';
 import { formatearFecha, formatearQuetzales } from '../util/formato.js';
 import { estaCerrada, etiqueta, transicionesVisibles } from '../util/embudo.js';
-import { campo, spinner } from './campo.js';
+import { campo, spinner, actualizando } from './campo.js';
 
 const volver = '<a class="d-inline-block mb-2" href="#/oportunidades">← Volver a oportunidades</a>';
 
@@ -19,6 +19,11 @@ const TEXTO_BOTON = {
   ganar: () => 'Marcar como ganada',
   perder: () => 'Marcar como perdida',
 };
+// Contenido de un botón: con spinner y texto de progreso mientras su acción está en curso (B6-02).
+const botonOcupado = (enCurso, texto, progreso) => (enCurso
+  ? `<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span><span role="status">${escaparHtml(progreso)}</span>`
+  : escaparHtml(texto));
+
 const CLASE_BOTON = { retroceder: 'btn-outline-secondary', avanzar: 'btn-primary', ganar: 'btn-success', perder: 'btn-outline-danger' };
 
 function renderCabecera(o) {
@@ -48,10 +53,13 @@ function renderTitulo(d) {
       <div class="flex-grow-1">
         ${campo({ id: 'detalle-titulo', nombre: 'titulo', etiqueta: 'Título', valor, error: d.errores.titulo, cargando: ocupado, maxlength: 150 })}
       </div>
-      <button type="submit" class="btn btn-outline-primary mt-md-4" ${ocupado ? 'disabled' : ''}>Guardar título</button>
+      <button type="submit" class="btn btn-outline-primary mt-md-4" ${ocupado ? 'disabled' : ''}>${botonOcupado(d.enviando === 'titulo', 'Guardar título', 'Guardando…')}</button>
     </form>`;
 }
 
+// A 375 px (B6-04) las cinco columnas no cabían y «Quitar» quedaba fuera de la vista: en pantallas
+// pequeñas (< 576 px) el precio unitario y «Quitar» pasan a la celda del producto, sus columnas se
+// ocultan y el formulario de cantidad se apila.
 function renderLineas(d, abierta) {
   const { productos } = d.datos;
   const ocupado = Boolean(d.enviando);
@@ -60,7 +68,7 @@ function renderLineas(d, abierta) {
     const error = d.errores.lineas[l.id];
     const valor = d.valores.lineas[l.id] ?? l.cantidad;
     const cantidad = abierta
-      ? `<form class="d-flex gap-1 align-items-start" data-formulario="linea" data-id="${escaparHtml(l.id)}" novalidate>
+      ? `<form class="d-flex flex-column flex-sm-row gap-1 align-items-start" data-formulario="linea" data-id="${escaparHtml(l.id)}" novalidate>
            <div>
              <label class="visually-hidden" for="linea-cantidad-${escaparHtml(l.id)}">Cantidad de ${escaparHtml(l.nombre)}</label>
              <input id="linea-cantidad-${escaparHtml(l.id)}" name="cantidad" type="number" min="1" max="999" step="1"
@@ -68,27 +76,32 @@ function renderLineas(d, abierta) {
                     ${error ? `aria-invalid="true" aria-describedby="linea-cantidad-${escaparHtml(l.id)}-error"` : ''} ${ocupado ? 'disabled' : ''}>
              ${error ? `<div id="linea-cantidad-${escaparHtml(l.id)}-error" class="invalid-feedback">${escaparHtml(error)}</div>` : ''}
            </div>
-           <button type="submit" class="btn btn-sm btn-outline-primary" ${ocupado ? 'disabled' : ''}>Guardar</button>
+           <button type="submit" class="btn btn-sm btn-outline-primary" ${ocupado ? 'disabled' : ''}>${botonOcupado(d.enviando === `linea-${l.id}`, 'Guardar', 'Guardando…')}</button>
          </form>`
       : escaparHtml(l.cantidad);
+    const quitar = (clases) => `<button type="button" class="btn btn-sm btn-outline-danger ${clases}" data-accion="quitar-linea" data-id="${escaparHtml(l.id)}" aria-label="Quitar ${escaparHtml(l.nombre)}" ${ocupado ? 'disabled' : ''}>${botonOcupado(d.enviando === `quitar-${l.id}`, 'Quitar', 'Quitando…')}</button>`;
     return `
       <tr>
-        <td class="text-break">${escaparHtml(l.nombre)}</td>
+        <td class="text-break">
+          ${escaparHtml(l.nombre)}
+          <div class="small text-body-secondary text-nowrap d-sm-none">${escaparHtml(formatearQuetzales(l.precio_unitario))} c/u</div>
+          ${abierta ? quitar('mt-1 d-sm-none') : ''}
+        </td>
         <td>${cantidad}</td>
-        <td class="text-nowrap text-end">${escaparHtml(formatearQuetzales(l.precio_unitario))}</td>
+        <td class="text-nowrap text-end d-none d-sm-table-cell">${escaparHtml(formatearQuetzales(l.precio_unitario))}</td>
         <td class="text-nowrap text-end">${escaparHtml(formatearQuetzales(l.subtotal))}</td>
-        ${abierta ? `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" data-accion="quitar-linea" data-id="${escaparHtml(l.id)}" aria-label="Quitar ${escaparHtml(l.nombre)}" ${ocupado ? 'disabled' : ''}>Quitar</button></td>` : ''}
+        ${abierta ? `<td class="text-end d-none d-sm-table-cell">${quitar('')}</td>` : ''}
       </tr>`;
   }).join('');
   return `
     <div class="table-responsive">
       <table class="table align-middle">
         <thead>
-          <tr><th scope="col">Producto</th><th scope="col">Cantidad</th><th scope="col" class="text-end">Precio</th><th scope="col" class="text-end">Subtotal</th>${abierta ? '<th scope="col"><span class="visually-hidden">Acciones</span></th>' : ''}</tr>
+          <tr><th scope="col">Producto</th><th scope="col">Cantidad</th><th scope="col" class="text-end d-none d-sm-table-cell">Precio</th><th scope="col" class="text-end">Subtotal</th>${abierta ? '<th scope="col" class="d-none d-sm-table-cell"><span class="visually-hidden">Acciones</span></th>' : ''}</tr>
         </thead>
         <tbody>${filas}</tbody>
         <tfoot>
-          <tr><th scope="row" colspan="3" class="text-end">Total</th><td class="text-nowrap text-end fw-semibold">${escaparHtml(formatearQuetzales(d.datos.total))}</td>${abierta ? '<td></td>' : ''}</tr>
+          <tr><th scope="row" colspan="2" class="text-end">Total</th><td class="d-none d-sm-table-cell"></td><td class="text-nowrap text-end fw-semibold">${escaparHtml(formatearQuetzales(d.datos.total))}</td>${abierta ? '<td class="d-none d-sm-table-cell"></td>' : ''}</tr>
         </tfoot>
       </table>
     </div>`;
@@ -110,7 +123,7 @@ function renderAgregar(d) {
         ${campo({ id: 'linea-cantidad', nombre: 'cantidad', tipo: 'number', etiqueta: 'Cantidad', valor: d.valores.linea.cantidad, error: e.cantidad, cargando: ocupado, min: 1, max: 999 })}
       </div>
       <div class="col-6 col-md-3 d-flex align-items-end mb-3 mt-md-4">
-        <button type="submit" class="btn btn-outline-success w-100" ${ocupado ? 'disabled' : ''}>Agregar</button>
+        <button type="submit" class="btn btn-outline-success w-100" ${ocupado ? 'disabled' : ''}>${botonOcupado(d.enviando === 'agregar', 'Agregar', 'Agregando…')}</button>
       </div>
       <p class="form-text mt-0">El precio se toma del catálogo al agregar el producto.</p>
     </form>`;
@@ -127,7 +140,7 @@ function renderTransiciones(d) {
       <h3 id="titulo-perdida" class="h6">Motivo de la pérdida</h3>
       ${campo({ id: 'perdida-motivo', nombre: 'motivo_perdida', etiqueta: 'Motivo', valor: d.valores.perdida, error: d.errores.perdida, cargando: ocupado, maxlength: 255, ayuda: 'De 1 a 255 caracteres.' })}
       <div class="d-flex flex-wrap gap-2">
-        <button type="submit" class="btn btn-danger" ${ocupado ? 'disabled' : ''}>Confirmar pérdida</button>
+        <button type="submit" class="btn btn-danger" ${ocupado ? 'disabled' : ''}>${botonOcupado(d.enviando === 'etapa-perdida', 'Confirmar pérdida', 'Confirmando…')}</button>
         <button type="button" class="btn btn-outline-secondary" data-accion="cancelar-perdida" ${ocupado ? 'disabled' : ''}>Cancelar</button>
       </div>
     </form>` : '';
@@ -146,7 +159,7 @@ function renderHistorial(historial) {
       ${historial.map((h) => `
         <li class="list-group-item d-flex flex-wrap justify-content-between gap-2">
           <span>${h.etapa_anterior ? `${escaparHtml(etiqueta(h.etapa_anterior))} → ` : 'Creada en '}<strong>${escaparHtml(etiqueta(h.etapa_nueva))}</strong></span>
-          <span class="small text-body-secondary">${escaparHtml(h.usuario)} · ${escaparHtml(formatearFecha(h.fecha))}</span>
+          <span class="small text-body-secondary text-break">${escaparHtml(h.usuario)} · ${escaparHtml(formatearFecha(h.fecha))}</span>
         </li>`).join('')}
     </ol>`;
 }
@@ -167,6 +180,7 @@ export function renderOportunidad(estado) {
   const abierta = !estaCerrada(o.etapa);
   return `
     ${volver}
+    ${d.cargando ? actualizando : ''}
     ${renderCabecera(o)}
     ${d.mensaje ? `<div id="mensaje-detalle" class="alert alert-${escaparHtml(d.mensaje.tipo)}" role="alert" tabindex="-1">${escaparHtml(d.mensaje.texto)}</div>` : ''}
     ${abierta ? renderTitulo(d) : '<div class="alert alert-light border small" role="status">La oportunidad está cerrada: no se pueden modificar su título, productos ni etapa.</div>'}

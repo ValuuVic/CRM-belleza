@@ -8,7 +8,8 @@
     "test:bd": "node --env-file=.env --test \"test/**/*.test.js\"",
     "dev": "node --watch --env-file=.env src/server.js",
     "start": "node --env-file=.env src/server.js",
-    "demo": "node demo/servidor-demo.js"
+    "demo": "node demo/servidor-demo.js",
+    "concurrencia": "node scripts/prueba-concurrencia.js"
   },
   "keywords": [],
   "author": "",

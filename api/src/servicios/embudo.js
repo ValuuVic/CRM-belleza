@@ -1,5 +1,5 @@
 // Embudo de ventas (R5; B4 §3). Funciones puras: no consultan la base de datos.
-// Transiciones (B4 §3, decisión D1 aún pendiente de aprobación formal en especificacion.md §14):
+// Transiciones (B4 §3; decisión D1 de especificacion.md §14, «Decidida e implementada»):
 // - Entre etapas abiertas solo se avanza o retrocede una etapa.
 // - A `perdida` desde cualquier etapa abierta; a `ganada` solo desde `negociacion`.
 // - Una oportunidad cerrada no cambia de etapa (409) y no se puede repetir la etapa actual (409).

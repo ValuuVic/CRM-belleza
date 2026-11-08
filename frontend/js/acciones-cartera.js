@@ -4,8 +4,9 @@
 // - Un 401 lo gestiona api.js (cierra la sesión y vuelve al login): aquí solo se deja de actuar.
 // - Un 422 conserva lo escrito y muestra los errores por campo (B3-14).
 // - Un 409 se muestra como mensaje del formulario o de la lista de disponibles.
+// - Una respuesta de otra sesión (S4) o de una consulta ya superada se descarta (B6-01, B6-08).
 
-import { obtenerEstado, actualizar } from './estado.js';
+import { obtenerEstado, actualizar, tokenActual, sigueLaSesion } from './estado.js';
 import {
   obtenerClientes, obtenerCliente, obtenerDisponibles, crearCliente, actualizarCliente, tomarCliente,
 } from './api.js';
@@ -57,11 +58,16 @@ export function cuerpoFormulario(modo, valores, original = VACIO) {
  * Carga la cartera. Si hay búsqueda, pide también el listado completo para el indicador «X de 10».
  * @param {{ busqueda?: string }} [opciones] busqueda: nuevo texto de búsqueda (por defecto, el vigente).
  */
+let consultaVigente = 0; // dos búsquedas seguidas: solo cuenta la respuesta de la última
+
 export async function cargarCartera({ busqueda = cartera().busqueda } = {}) {
   const q = String(busqueda ?? '').trim();
-  cambiarCartera({ cargando: true, error: null, busqueda: q });
+  const consulta = ++consultaVigente;
+  const token = tokenActual();
+  cambiarCartera({ cargando: true, error: null, busqueda: q, borradorBusqueda: null });
   const [filtrada, completa] = await Promise.all([obtenerClientes(q), q ? obtenerClientes() : null]);
-  if (filtrada.status === 401 || completa?.status === 401) return;
+  if (!sigueLaSesion(token, filtrada) || (completa && !sigueLaSesion(token, completa))) return;
+  if (consulta !== consultaVigente) return;
 
   if (filtrada.ok && Array.isArray(filtrada.datos) && (!completa || (completa.ok && Array.isArray(completa.datos)))) {
     cambiarCartera({
@@ -85,9 +91,11 @@ export function abrirNuevo() {
 }
 
 export async function abrirEdicion(id) {
+  const token = tokenActual();
   cambiarCartera({ formulario: { modo: 'editar', id, valores: { ...VACIO }, original: null, errores: {}, mensaje: null, enviando: false, cargando: true } });
   const r = await obtenerCliente(id);
-  if (r.status === 401) return;
+  if (!sigueLaSesion(token, r)) return;
+  if (cartera().formulario?.modo !== 'editar' || String(cartera().formulario.id) !== String(id)) return; // se canceló o se abrió otro
   if (r.ok && r.datos && typeof r.datos === 'object') {
     const valores = aValores(r.datos);
     cambiarFormulario({ cargando: false, valores, original: { ...valores } });
@@ -112,9 +120,10 @@ export async function enviarFormulario(datos) {
     return;
   }
 
+  const token = tokenActual();
   cambiarFormulario({ valores, errores: {}, mensaje: null, enviando: true });
   const r = f.modo === 'crear' ? await crearCliente(cuerpo) : await actualizarCliente(f.id, cuerpo);
-  if (r.status === 401) return;
+  if (!sigueLaSesion(token, r)) return;
 
   if (r.ok) {
     cambiarCartera({ formulario: null });
@@ -133,9 +142,10 @@ export async function enviarFormulario(datos) {
 // ---------- Clientes disponibles ----------
 
 export async function verDisponibles() {
+  const token = tokenActual();
   cambiarDisponibles({ visible: true, cargando: true, error: null });
   const r = await obtenerDisponibles();
-  if (r.status === 401) return;
+  if (!sigueLaSesion(token, r)) return;
   if (r.ok && Array.isArray(r.datos)) cambiarDisponibles({ cargando: false, lista: r.datos });
   else cambiarDisponibles({ cargando: false, error: mensajeDe(r, 'No se pudieron cargar los clientes disponibles.') });
 }
@@ -145,9 +155,10 @@ export const ocultarDisponibles = () => cambiarDisponibles({ visible: false, err
 export async function tomar(id) {
   if (cartera().disponibles.tomando !== null) return;
   const nombre = cartera().disponibles.lista.find((c) => String(c.id) === String(id))?.nombre;
+  const token = tokenActual();
   cambiarDisponibles({ tomando: id, error: null });
   const r = await tomarCliente(id);
-  if (r.status === 401) return;
+  if (!sigueLaSesion(token, r)) return;
   cambiarDisponibles({ tomando: null });
   if (r.ok) {
     actualizar({ aviso: { tipo: 'success', texto: nombre ? `Se agregó «${nombre}» a su cartera.` : 'Cliente agregado a su cartera.' } });

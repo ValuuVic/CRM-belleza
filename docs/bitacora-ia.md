@@ -25,12 +25,13 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-05 | 2026-11-07 | B | Pruebas de los hooks | Corregido | `2312f37` |
 | IA-06 | 2026-11-08 | B | B1 · `api/src/server.js` | Corregido | `f800096` |
 | IA-07 | 2026-11-08 | B | Hooks · `vigilar-bash.mjs` | Corregido | `a35f8fa` |
-| IA-08 | 2026-11-08 | B | Hooks · `revisar-cambio.mjs` | Corregido | Pendiente (sin commit) |
-| IA-09 | 2026-11-08 | B | B2 · `api/src/rutas/auth.js` y SPA | Corregido | Pendiente (sin commit) |
-| IA-10 | 2026-11-08 | B | B3 · plan y `api/test/ayuda/bd-simulada.js` | Corregido | Pendiente (sin commit) |
-| IA-11 | 2026-11-08 | B | B4 · rutas, pruebas de concurrencia y SPA de oportunidades | Corregido | Pendiente (sin commit) |
-| IA-12 | 2026-11-08 | B | `docs/especificacion.md` y `api/test/integracion-b3.test.js` (lectura del enunciado) | Corregido | Pendiente (sin commit) |
-| IA-13 | 2026-11-08 | B | B5 · actividades (API, simulación y SPA) | Corregido | Pendiente (sin commit) |
+| IA-08 | 2026-11-08 | B | Hooks · `revisar-cambio.mjs` | Corregido | `a7c202c` |
+| IA-09 | 2026-11-08 | B | B2 · `api/src/rutas/auth.js` y SPA | Corregido | `baead7e` (API) y `8632b90` (SPA) |
+| IA-10 | 2026-11-08 | B | B3 · plan y `api/test/ayuda/bd-simulada.js` | Corregido | `7b34af9` |
+| IA-11 | 2026-11-08 | B | B4 · rutas, pruebas de concurrencia y SPA de oportunidades | Corregido | `ff34248` |
+| IA-12 | 2026-11-08 | B | `docs/especificacion.md` y `api/test/integracion-b3.test.js` (lectura del enunciado) | Corregido | `ff34248` |
+| IA-13 | 2026-11-08 | B | B5 · actividades (API, simulación y SPA) | Corregido | `2865d43` (API) y `a9f8bd4` (SPA) |
+| IA-14 | 2026-11-08 | B | B6 · SPA a 375 px, sesión, Postman, script de concurrencia y pruebas | Corregido | Pendiente (sin commit) |
 
 ---
 
@@ -264,7 +265,7 @@ En `revisar-cambio.mjs`, las reglas "Secreto JWT escrito" y "El JWT debe usar ex
 **Verificación.**
 Prueba de regresión `RC8` en `.claude/hooks/pruebas/hooks.test.mjs`. Las pruebas negativas se permiten en `api/test/`; en `api/src/` un secreto fijo y `HS512` siguen bloqueados, y en las pruebas se siguen bloqueando el SQL interpolado y los ORM. Resultado: 34 de 34. Ejecutado sobre el archivo real, el hook ya no lo bloquea.
 
-**Commit.** Pendiente (sin commit).
+**Commit.** `a7c202c` (fix(hooks): permitir pruebas negativas de JWT en revisar-cambio).
 
 ---
 
@@ -314,7 +315,7 @@ Prueba de regresión `RC8` en `.claude/hooks/pruebas/hooks.test.mjs`. Las prueba
 
 **Verificación.** `npm test` en `api/` da 106 pruebas, 100 superadas, 0 fallidas, 3 omitidas y 3 `todo`; las omitidas y las `todo` dependen de I1. Con las 3 pruebas de `demo.test.js` añadidas, da 109 pruebas, 103 superadas y 0 fallidas. `npm run test:bd` con MySQL da 102 superadas, 0 fallidas, 1 omitida (la de integración, por I1) y 3 `todo`. `node --test frontend/test/*.test.js` da 26 de 26, y las pruebas de los hooks, 34 de 34.
 
-**Commit.** Pendiente (sin commit).
+**Commit.** `baead7e` (API: puntos 1, 4, 5, 6 y 7) y `8632b90` (SPA: puntos 2 y 3).
 
 ---
 
@@ -335,7 +336,7 @@ Prueba de regresión `RC8` en `.claude/hooks/pruebas/hooks.test.mjs`. Las prueba
 
 **Verificación.** `npm test` en `api/` da 179 pruebas, 161 superadas, 0 fallidas, 8 omitidas y 10 `todo`; las omitidas y las `todo` dependen de I1. `node --test frontend/test/*.test.js` da 47 de 47, y las pruebas de los hooks, 34 de 34.
 
-**Commit.** Pendiente (sin commit).
+**Commit.** `7b34af9` (límite de `q` y autoincremento de la base simulada).
 
 ---
 
@@ -367,7 +368,7 @@ Prueba de regresión `RC8` en `.claude/hooks/pruebas/hooks.test.mjs`. Las prueba
 
 **Verificación.** `npm test` en `api/` da 285 pruebas, 254 superadas, 0 fallidas, 13 omitidas y 18 `todo`; las omitidas y las `todo` dependen de I1 e I3. `node --test frontend/test/*.test.js` da 73 de 73, y las pruebas de los hooks, 34 de 34.
 
-**Commit.** Pendiente (sin commit).
+**Commit.** `ff34248` (B4: rutas, pruebas de concurrencia y SPA).
 
 ---
 
@@ -394,7 +395,7 @@ El propio agente desconfió del resultado porque contradecía las cifras de cont
 
 **Verificación.** `npm test` en `api/` da 255 superadas y 0 fallidas tras la corrección (la prueba de integración afectada se omite hasta I1, pero su valor esperado coincide con la semilla oficial).
 
-**Commit.** Pendiente (sin commit).
+**Commit.** `ff34248` (especificación y `integracion-b3.test.js`).
 
 ---
 
@@ -437,5 +438,59 @@ El propio agente desconfió del resultado porque contradecía las cifras de cont
 - `npm test` en `api/`: 421 pruebas, 374 superadas, 0 fallidas, 23 omitidas y 24 `todo`. Las omitidas y las `todo` dependen de I1 e I3.
 - `node --test frontend/test/*.test.js`: 100 de 100.
 - Pruebas de los hooks: 34 de 34.
+
+**Commit.** `2865d43` (API: puntos 1, 2, 4 y 5) y `a9f8bd4` (SPA: punto 3).
+
+---
+
+## IA-14 — Errores del agente detectados en la fase B6 (calidad)
+
+**1. `overflow-x: hidden` ocultaba controles cortados a 375 px.**
+- **Propuesta:** en B2 el agente añadió `html, body { overflow-x: hidden; }` a `frontend/css/estilos.css` para cumplir «sin desplazamiento horizontal a 375 px» (CA-14). En IA-09 dio por buena la tabla de la cartera.
+- **Por qué era incorrecto:** la regla no evita el desbordamiento, solo lo esconde. Con datos más largos, el botón «Editar» de la cartera quedaba entre 336 y 389 px, con el contenedor terminando en 363 px. En la tabla de líneas del detalle, los botones «Quitar» quedaban entre 440 y 497 px. Además, el texto `visually-hidden` de la cabecera «Acciones» (posición absoluta) se escapaba del recorte de `.table-responsive` y ensanchaba la página a 440 px. Es justo lo que prohíbe B6-04 («controles importantes cortados»).
+- **Detección:** medición en el navegador integrado a 375 × 812 contra la demo, desactivando temporalmente `overflow-x: hidden` y buscando elementos fuera del viewport.
+- **Corrección:** en pantallas de menos de 576 px, el correo pasa bajo el nombre en la cartera; en el detalle, el precio unitario y «Quitar» pasan a la celda del producto y el formulario de cantidad se apila. Se añadió `.table-responsive { position: relative; }` y se retiró `overflow-x: hidden`. Medición final: 0 elementos fuera de 375 px en login, cartera (con formulario, disponibles y búsqueda larga), tablero, detalle y actividades. Hay pruebas de regresión en `frontend/test/calidad-b6.test.js` (B6-04).
+
+**2. Un 401 tardío de la sesión anterior cerraba la sesión de quien entró después.**
+- **Propuesta:** en B2, `pedir()` (`frontend/js/api.js`) llamaba a `manejarSesionExpirada()` ante cualquier 401 de una ruta protegida. En B6 se extendió a cartera y oportunidades el descarte de respuestas de otra sesión, pero sin revisar `api.js`.
+- **Por qué era incorrecto:** una petición enviada con el token de la sesión A que respondía 401 después del cambio de usuario cerraba la sesión B, contra el objetivo de B6-08 y S4.
+- **Detección:** lo señaló el subagente `revisor-seguridad` (hallazgo 6, gravedad baja).
+- **Corrección:** solo se cierra la sesión si el token enviado sigue siendo el vigente. Pruebas nuevas: el 401 tardío no cierra la sesión B, y el 401 de la sesión vigente sí la cierra (B2-14 se mantiene).
+
+**3. Mensaje de tiempo agotado que invitaba a reintentar escrituras a ciegas.**
+- **Propuesta:** al añadir el tiempo límite de 15 s (B6-02), el agente usó el mismo «Inténtelo de nuevo» para lecturas y escrituras.
+- **Por qué era incorrecto:** el servidor puede confirmar la escritura aunque el cliente cancele la espera. Crear oportunidades y actividades no tiene índice único, así que reintentar podía duplicarlas (S8).
+- **Detección:** subagente `revisor-seguridad` (hallazgo 4).
+- **Corrección:** las escrituras canceladas por tiempo muestran «…la operación pudo haberse completado. Actualice la vista y compruébelo antes de volver a intentarlo». Hay prueba nueva.
+
+**4. Colección de Postman cuyas cifras de control no podían pasar.**
+- **Propuesta:** la carpeta del resumen mensual iba al final y la descripción pedía ejecutar la colección completa en orden. Los casos RP calculaban la cantidad insuficiente como `stock + 3`.
+- **Por qué era incorrecto:** al llegar al resumen, la colección ya había añadido dos clientes a la vendedora y dejado oportunidades en negociación, así que «3 de 10» y el pronóstico Q2,512.88 no podían cumplirse. Además, con un stock de 997 o más, `stock + 3` superaba la cantidad máxima de una línea (999) y el caso fallaba en la preparación (422) en lugar de en la regla.
+- **Detección:** subagente `revisor-contrato` (discrepancias 1 y 2).
+- **Corrección:** el resumen pasó a la carpeta 04, antes de cualquier escritura (hay una prueba estructural que lo exige), y la cantidad insuficiente es `stock + 1` con una aserción de que no supera 999.
+
+**5. B6-18 no probaba exactamente «la última unidad».**
+- **Propuesta:** las dos oportunidades pedían todo el stock S del producto.
+- **Por qué era incorrecto:** equivale a la spec solo si S = 1. B6-18 dice «la última unidad».
+- **Detección:** subagente `revisor-contrato` (discrepancia 4).
+- **Corrección:** si S > 1, el script vende antes S − 1 unidades, comprueba que queda 1 y las dos ventas compiten por esa unidad. También se comprueba la forma `{ error }` del 409 en B6-16 (discrepancia 5).
+
+**6. La contraseña pública de la semilla escrita en pruebas.**
+- **Propuesta:** `api/test/postman-coleccion.test.js` y `api/test/prueba-concurrencia.test.js` comparaban con el literal de la contraseña pública de `VerificacionSeeder`.
+- **Por qué era incorrecto:** S2-01 solo permite ese texto en las semillas, el README y la colección de Postman.
+- **Detección:** subagente `revisor-seguridad` (hallazgos 2 y 3).
+- **Corrección:** las pruebas usan un patrón genérico (`/^Ventas\d{4}$/`) sin repetir la contraseña.
+
+**7. Edición por lotes que dejó una expresión regular rota.**
+- **Propuesta:** el agente aplicó varias correcciones a la vez con un script de reemplazos dentro de un heredoc.
+- **Por qué era incorrecto:** el script se detuvo a mitad (un texto buscado no coincidía por el escapado) y dejó aplicadas solo las primeras ediciones. En una de ellas se perdió la barra invertida: `/^Ventas\d{4}$/` quedó como `/^Ventasd{4}$/`.
+- **Detección:** la prueba `postman-coleccion.test.js` falló («The input did not match /^Ventasd{4}$/»). El agente revisó con `grep` qué ediciones del lote se habían aplicado.
+- **Corrección:** se completaron con ediciones exactas las que faltaban y se corrigió la expresión. Lección: después de un lote de reemplazos, comprobar archivo por archivo qué se aplicó.
+
+**Verificación.**
+- `node --test "frontend/test/*.test.js"`: 137 de 137, incluidas 37 pruebas nuevas de `calidad-b6.test.js`. Contra el código anterior a B6, 7 de las pruebas nuevas fallan (comprobación de mutación).
+- Pruebas nuevas de la API: `postman-coleccion.test.js` 41 de 41; `prueba-concurrencia.test.js` 6 de 6; `integracion-b2.test.js` 5 omitidas con su motivo (I1).
+- `npm run concurrencia -- --confirmar-escritura` contra la demo: 5 de 5 escenarios aprobados (evidencia **simulada**).
+- La colección de Postman, ejecutada contra la demo con un ejecutor local: 221 de 227 aserciones superadas. Las 6 fallidas son del resumen mensual, que todavía no existe (Parte A).
 
 **Commit.** Pendiente (sin commit).

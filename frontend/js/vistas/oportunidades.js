@@ -5,7 +5,7 @@
 import { escaparHtml } from '../util/escape.js';
 import { formatearFecha, formatearQuetzales } from '../util/formato.js';
 import { ETAPAS_ABIERTAS, etiqueta } from '../util/embudo.js';
-import { campo, spinner } from './campo.js';
+import { campo, spinner, actualizando } from './campo.js';
 
 const enlace = (o) => `#/oportunidades/${encodeURIComponent(String(o.id))}`;
 
@@ -104,6 +104,6 @@ export function renderOportunidades(estado) {
         <span>${escaparHtml(t.error)}</span>
         <button type="button" class="btn btn-sm btn-outline-danger" data-accion="reintentar-oportunidades">Reintentar</button>
       </div>`;
-  } else cuerpo = `${renderColumnas(t.lista)}${renderCerradas(t.lista)}`;
+  } else cuerpo = `${t.cargando ? actualizando : ''}${renderColumnas(t.lista)}${renderCerradas(t.lista)}`;
   return `${encabezado}${renderFormulario(t.formulario, t.clientes)}${cuerpo}`;
 }

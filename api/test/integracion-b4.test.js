@@ -99,9 +99,9 @@ describe('B4 integración con el esquema y la semilla oficial (I1)', () => {
   test.todo('B4-04: crear oportunidad → prospecto con historial inicial en MySQL');
   test.todo('B4-06 a B4-10: agregar, editar y quitar líneas con precio copiado del catálogo real');
   test.todo('B4-12 a B4-15: transiciones válidas, inválidas, perdida con motivo y ganar sin productos');
-  test.todo('B4-16 a B4-18: stock insuficiente (409), descuento y stock NULL contra el CHECK real');
-  test.todo('B4-C1: transiciones simultáneas con bloqueos reales de InnoDB');
-  test.todo('B4-C2: dos ventas por la última unidad con InnoDB real; stock nunca negativo');
+  test.todo('B4-16 a B4-18: stock insuficiente (409), descuento y stock NULL contra el CHECK real (Postman: carpeta RP-01 a RP-04, B6-13)');
+  test.todo('B4-C1: transiciones simultáneas con bloqueos reales de InnoDB (se cubrirá con npm run concurrencia, B6-17)');
+  test.todo('B4-C2: dos ventas por la última unidad con InnoDB real; stock nunca negativo (se cubrirá con npm run concurrencia, B6-18)');
   test.todo('B4-C3: rollback completo de stock, etapa e historial en MySQL');
   test.todo('I3: venta ganada desde la SPA reflejada en el reporte mensual del panel (Parte A)');
 });

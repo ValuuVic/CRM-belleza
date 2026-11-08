@@ -3,8 +3,9 @@
 // - Patrón estado → render: cada cambio de estado vuelve a dibujar la vista activa.
 // - Delegación de eventos en `document` (formularios y botones con data-accion).
 
-import { obtenerEstado, actualizar, suscribir, guardarSesion, cerrarSesion } from './estado.js';
-import { iniciarSesion } from './api.js';
+import { obtenerEstado, actualizar, suscribir, cerrarSesion } from './estado.js';
+import * as sesion from './acciones-sesion.js';
+import { guardarBorrador } from './borradores.js';
 import * as cartera from './acciones-cartera.js';
 import * as oportunidades from './acciones-oportunidades.js';
 import * as actividades from './acciones-actividades.js';
@@ -67,10 +68,36 @@ function renderNavegacion({ sesion, ruta }) {
 
 let ultimoMensajeDetalle = null;
 
+/**
+ * Recuerda qué campo de la vista tenía el foco (y dónde estaba el cursor) para devolvérselo después
+ * de redibujar: junto con los borradores (borradores.js), una recarga o un aviso no interrumpen lo
+ * que el usuario está escribiendo (B6-05).
+ */
+function focoActual() {
+  const activo = document.activeElement;
+  if (!activo?.id || !$app.contains(activo) || !/^(INPUT|TEXTAREA|SELECT)$/.test(activo.tagName)) return null;
+  let inicio = null;
+  let fin = null;
+  try { inicio = activo.selectionStart; fin = activo.selectionEnd; } catch { /* tipos sin selección */ }
+  return { id: activo.id, inicio, fin };
+}
+
+function restaurarFoco(foco) {
+  if (!foco) return;
+  const $campo = document.getElementById(foco.id);
+  if (!$campo || $campo.disabled || !$app.contains($campo)) return;
+  $campo.focus({ preventScroll: true });
+  try {
+    if (foco.inicio !== null) $campo.setSelectionRange(foco.inicio, foco.fin);
+  } catch { /* tipos sin selección (number, email, datetime-local) */ }
+}
+
 function render(estado) {
   renderNavegacion(estado);
   renderAvisos(estado);
+  const foco = focoActual();
   $app.innerHTML = renderVista(estado);
+  restaurarFoco(foco);
   // B4-25: el resultado de una acción del detalle (p. ej. 409 por stock) se muestra arriba;
   // al aparecer un mensaje nuevo se lleva el foco a él para que se vea y se lea en voz alta.
   const mensaje = estado.detalle?.mensaje ?? null;
@@ -86,24 +113,13 @@ function render(estado) {
 
 // Las acciones de la cartera (B3) están en acciones-cartera.js; un 401 lo gestiona api.js (B2-14).
 
+// El inicio de sesión está en acciones-sesion.js (B6-09); aquí solo se lee y vacía el formulario.
 async function enviarLogin(formulario) {
   const datos = new FormData(formulario);
-  const correo = String(datos.get('correo') ?? '').trim();
+  const correo = String(datos.get('correo') ?? '');
   const clave = String(datos.get('clave') ?? '');
   formulario.reset(); // la contraseña no permanece en el formulario ni en el estado
-
-  actualizar({ aviso: null, login: { cargando: true, correo, errores: {}, mensaje: null } });
-  const r = await iniciarSesion(correo, clave);
-
-  if (r.ok && r.datos?.token && r.datos?.usuario) {
-    guardarSesion(r.datos);
-    actualizar({ login: { cargando: false, correo: '', errores: {}, mensaje: null } });
-    navegar('#/cartera');
-    return;
-  }
-  const errores = r.status === 422 && r.datos?.errores ? r.datos.errores : {};
-  const mensaje = r.status === 422 ? null : r.datos?.error ?? 'No se pudo iniciar sesión.';
-  actualizar({ login: { cargando: false, correo, errores, mensaje } });
+  if (await sesion.enviarLogin({ correo, clave })) navegar('#/cartera');
 }
 
 function salir() {
@@ -218,6 +234,16 @@ document.addEventListener('click', (evento) => {
     default: break;
   }
 });
+
+// Borradores (B6-05): lo escrito se copia al estado sin redibujar, para que el próximo render lo conserve.
+function alEscribir(evento) {
+  const control = evento.target;
+  const formulario = control?.form;
+  if (!formulario || !control.name || !$app.contains(formulario)) return;
+  guardarBorrador({ formulario: formulario.id, dataset: { ...formulario.dataset }, nombre: control.name, valor: control.value });
+}
+document.addEventListener('input', alEscribir);
+document.addEventListener('change', alEscribir);
 
 window.addEventListener('hashchange', alCambiarRuta);
 

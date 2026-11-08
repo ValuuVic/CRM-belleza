@@ -6,6 +6,20 @@ export const URL_API = 'http://127.0.0.1:3000/api';
 
 export const MENSAJE_SIN_CONEXION = 'No se pudo conectar con el servidor. Compruebe su conexión e inténtelo de nuevo.';
 export const MENSAJE_SESION_EXPIRADA = 'Su sesión ha expirado. Inicie sesión nuevamente.';
+export const MENSAJE_TIEMPO_AGOTADO = 'El servidor tardó demasiado en responder. Inténtelo de nuevo en unos momentos.';
+// En una escritura cancelada por tiempo, el servidor pudo haberla completado: reintentar a ciegas podría
+// duplicar una oportunidad o una actividad, así que se pide revisar antes (S8).
+export const MENSAJE_TIEMPO_AGOTADO_ESCRITURA = 'No se recibió respuesta del servidor y la operación pudo haberse completado. Actualice la vista y compruébelo antes de volver a intentarlo.';
+
+// Tiempo máximo de una petición (B6-02, B6-03): si la API no responde, la petición se cancela y el
+// indicador de carga se retira con un mensaje, en lugar de quedarse girando indefinidamente.
+const TIEMPO_LIMITE_MS = 15000;
+let tiempoLimiteMs = TIEMPO_LIMITE_MS;
+
+/** Solo para las pruebas: cambia el tiempo límite (sin argumento, vuelve al valor normal). */
+export function _fijarTiempoLimiteParaPruebas(ms = TIEMPO_LIMITE_MS) {
+  tiempoLimiteMs = ms;
+}
 
 /** Sesión expirada o revocada (B2-14): borra el token, avisa y vuelve al login. */
 function manejarSesionExpirada() {
@@ -17,7 +31,7 @@ function manejarSesionExpirada() {
 /**
  * Hace una petición a la API.
  * @returns {Promise<{ ok: boolean, status: number, datos: any, errorRed?: boolean }>}
- *   `status` es 0 cuando no se pudo conectar.
+ *   `status` es 0 cuando no se pudo conectar o la API no respondió a tiempo (`tiempoAgotado`).
  */
 export async function pedir(ruta, { metodo = 'GET', cuerpo, protegida = true } = {}) {
   const cabeceras = { Accept: 'application/json' };
@@ -25,26 +39,38 @@ export async function pedir(ruta, { metodo = 'GET', cuerpo, protegida = true } =
   const token = obtenerEstado().sesion?.token;
   if (protegida && token) cabeceras.Authorization = `Bearer ${token}`;
 
+  const control = new AbortController();
+  const temporizador = setTimeout(() => control.abort(), tiempoLimiteMs);
   let respuesta;
-  try {
-    respuesta = await globalThis.fetch(`${URL_API}${ruta}`, {
-      method: metodo,
-      headers: cabeceras,
-      body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
-    });
-  } catch {
-    return { ok: false, status: 0, datos: { error: MENSAJE_SIN_CONEXION }, errorRed: true };
-  }
-
   let datos = null;
   try {
-    const texto = await respuesta.text();
-    datos = texto ? JSON.parse(texto) : null;
-  } catch {
-    datos = null;
+    try {
+      respuesta = await globalThis.fetch(`${URL_API}${ruta}`, {
+        method: metodo,
+        headers: cabeceras,
+        body: cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined,
+        signal: control.signal,
+      });
+    } catch {
+      const mensaje = metodo === 'GET' ? MENSAJE_TIEMPO_AGOTADO : MENSAJE_TIEMPO_AGOTADO_ESCRITURA;
+      return control.signal.aborted
+        ? { ok: false, status: 0, datos: { error: mensaje }, errorRed: true, tiempoAgotado: true }
+        : { ok: false, status: 0, datos: { error: MENSAJE_SIN_CONEXION }, errorRed: true };
+    }
+
+    try {
+      const texto = await respuesta.text();
+      datos = texto ? JSON.parse(texto) : null;
+    } catch {
+      datos = null;
+    }
+  } finally {
+    clearTimeout(temporizador);
   }
 
-  if (respuesta.status === 401 && protegida) manejarSesionExpirada();
+  // Solo un 401 de la sesión vigente la cierra: el de una petición enviada con el token de una sesión
+  // anterior (respuesta tardía) no debe cerrar la sesión de quien entró después (S4, B6-08).
+  if (respuesta.status === 401 && protegida && token === obtenerEstado().sesion?.token) manejarSesionExpirada();
   return { ok: respuesta.ok, status: respuesta.status, datos };
 }
 
