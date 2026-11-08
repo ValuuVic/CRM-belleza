@@ -309,6 +309,19 @@ test('RC6 package.json con knex bloquea', () => {
 test('RC7 credenciales de prueba permitidas en tests', () => {
   assert.equal(rc('api/test/login.test.js', "const password = 'secreto123';\n"), null);
 });
+// Regresión IA-08: las pruebas negativas de JWT (B2-07) firman con otro secreto y otros algoritmos.
+test('RC8 pruebas negativas de JWT permitidas en archivos de prueba, prohibidas en api/src', () => {
+  const negativa = "jwt.sign({ sub: '4' }, 'otro_secreto_de_al_menos_32_caracteres!!', { algorithm: 'HS256' });\n"
+    + "jwt.sign({ sub: '4' }, SECRETO, { algorithm: 'HS512' });\njwt.verify(t, s, { algorithms: ['RS256'] });\n";
+  assert.equal(rc('api/test/middleware-auth.test.js', negativa), null);
+  assert.equal(rc('api/test/ayuda/tokens.js', negativa), null);
+  // fuera de las pruebas siguen bloqueando
+  assert.equal(rc('api/src/config/jwt.js', "jwt.sign(p, 'secreto-fijo-en-codigo');\n").decision, 'block');
+  assert.equal(rc('api/src/middleware/auth.js', "jwt.verify(t, s, { algorithms: ['HS512'] });\n").decision, 'block');
+  // y las demás reglas siguen aplicándose a las pruebas
+  assert.equal(rc('api/test/x.test.js', 'const s = `SELECT * FROM users WHERE id = ${id}`;\n').decision, 'block');
+  assert.equal(rc('api/test/x.test.js', "import { Sequelize } from 'sequelize';\n").decision, 'block');
+});
 
 // ---------- pruebas-al-terminar ----------
 test('PT1 sin cambios en api/frontend: sin salida', () => {

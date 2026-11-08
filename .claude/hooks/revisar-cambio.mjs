@@ -59,11 +59,15 @@ function revisarContenido(rel, contenido) {
   const avisos = [];
   const reglas = rel.startsWith('api/') ? REGLAS_API : rel.startsWith('frontend/') ? REGLAS_FRONTEND : [];
 
-  // Las pruebas pueden usar las credenciales de prueba de la semilla.
+  // Las pruebas pueden usar las credenciales de prueba de la semilla y, en las pruebas
+  // negativas de JWT (B2-07), firmar tokens con un secreto de prueba o con algoritmos
+  // no permitidos para comprobar que la API los rechaza. Estas reglas siguen aplicándose
+  // a todo el código de api/src.
   const esPrueba = /(^|\/)(test|tests|__tests__)\/|\.test\.m?js$/.test(rel);
+  const EXENTAS_EN_PRUEBAS = ['Posible secreto', 'Secreto JWT escrito', 'El JWT debe usar exclusivamente HS256'];
 
   for (const [patron, nivel, mensaje] of reglas) {
-    if (esPrueba && mensaje.startsWith('Posible secreto')) continue;
+    if (esPrueba && EXENTAS_EN_PRUEBAS.some((m) => mensaje.startsWith(m))) continue;
     if (!patron.test(contenido)) continue;
     if (nivel === 'pool') {
       if (!/timezone\s*:\s*['"]Z['"]/.test(contenido)) avisos.push("El pool de mysql2 debe usar timezone: 'Z' (CLAUDE.md §4).");

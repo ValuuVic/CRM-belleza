@@ -1,0 +1,18 @@
+/* Ajustes mínimos sobre Bootstrap 5.3 para la SPA del vendedor. */
+
+/* Evita el desplazamiento horizontal de la página en pantallas de 375 px (CA-14). */
+html,
+body {
+  overflow-x: hidden;
+}
+
+/* Nombres y correos largos se parten (clase .text-break); NIT y teléfono no (.text-nowrap).
+   Si aun así la tabla no cabe, .table-responsive la desplaza dentro de su contenedor. */
+.table td.text-break {
+  overflow-wrap: anywhere;
+}
+
+/* En móvil, la barra de navegación ocupa varias líneas sin desbordarse. */
+#nav-enlaces {
+  min-width: 0;
+}
