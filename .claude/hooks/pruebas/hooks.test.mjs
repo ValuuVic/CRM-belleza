@@ -199,6 +199,73 @@ test('VB6 borrado recursivo', () => {
   assert.equal(vb('Remove-Item -Recurse -Force frontend\\js', undefined, 'PowerShell'), 'ask');
 });
 
+// Regresión IA-07: `npm install` sin paquetes seguido de tuberías o redirecciones.
+test('VB7 npm install sin paquetes no se confunde con una dependencia nueva', () => {
+  // permitidos: reinstalan lo declarado en package-lock.json
+  for (const c of [
+    'npm install 2>&1 | tail -5', 'npm install | tail -5', 'cd api && npm install 2>&1 | tail -5', 'npm install > /dev/null',
+    'npm install --no-audit --no-fund', 'npm i', 'npm ci 2>&1 | tail', 'npm --prefix api install', 'yarn install | tail',
+    'pnpm install; npm test', 'npm install && npm test', 'npm run test:bd 2>&1 | grep -E "ℹ"',
+  ]) {
+    assert.equal(vb(c), 'none', c);
+  }
+  // siguen pidiendo confirmación: agregan dependencias nuevas
+  for (const c of [
+    'npm install supertest', 'npm install supertest 2>&1 | tail -5', 'npm i -D supertest', 'npm install --save-dev supertest | tail',
+    'cd api && npm install lodash', 'yarn add dayjs', 'pnpm add zod', 'npm install 2>&1 | tail -5 && npm install supertest',
+    'bash -c "npm install supertest"', 'composer require laravel/sanctum',
+  ]) {
+    assert.equal(vb(c), 'ask', c);
+  }
+  // siguen prohibidos: ORM y query builders
+  for (const c of [
+    'npm install sequelize 2>&1 | tail -5', 'npm i -D @prisma/client | tail', 'npm install knex@3 > /dev/null', 'yarn add typeorm',
+    'npx prisma init', 'npm install | tail -5; npm install knex', 'powershell -Command "npm install sequelize"',
+  ]) {
+    assert.equal(vb(c), 'deny', c);
+  }
+});
+
+// Regresión IA-07: palabras como "del" dentro de argumentos, rutas o textos.
+test('VB8 "del", "copy", "move"… en textos o rutas no son comandos de borrado o escritura', () => {
+  for (const c of [
+    'echo "--- registros del hook"; grep "x" .claude/bloqueos.log; node --test .claude/hooks/pruebas/hooks.test.mjs',
+    'grep -n "registros del hook" .claude/hooks/comun.mjs',
+    'cat .claude/hooks/vigilar-bash.mjs | grep "del"',
+    'git log --oneline -- .claude/hooks/del.txt',
+    'echo "copy move rm del" && ls .claude/hooks',
+    'grep -rn "rm -f" .claude/hooks/vigilar-bash.mjs',
+    'node -e "console.log(1 > 0)" && ls .claude/hooks',
+    'echo "a > b" ; cat .claude/settings.json',
+    'cat laravel/routes/web.php | grep "move del registro"',
+    'node --test .claude/hooks/pruebas/hooks.test.mjs 2>&1 | grep -E "^(✖|ℹ)"',
+  ]) {
+    assert.equal(vb(c), 'none', c);
+  }
+});
+test('VB9 las escrituras reales en zonas protegidas siguen detectándose', () => {
+  // Parte A y migraciones
+  for (const c of [
+    'del laravel\\routes\\web.php', 'cmd /c del laravel\\routes\\web.php', 'echo x > laravel/routes/web.php',
+    'cat > laravel/routes/web.php <<\'EOF\'\nhola del mundo\nEOF', 'cp x.php laravel/app/x.php', 'mv a laravel/b',
+    'tee laravel/x.txt < a', 'Copy-Item a laravel\\b', 'bash -c "rm laravel/routes/web.php"', 'git checkout -- laravel/routes/web.php',
+    'echo "texto" && del frontend\\js\\vistas\\resumen.js',
+  ]) {
+    assert.equal(vb(c), 'deny', c);
+  }
+  assert.equal(vb('rm laravel/database/migrations/x.php', { CRM_PARTE: 'A' }), 'deny');
+  // configuración de hooks
+  for (const c of [
+    'del .claude\\hooks\\comun.mjs', 'echo x >> .claude/settings.json', 'cp a.mjs .claude/hooks/a.mjs',
+    'Set-Content .claude\\hooks\\x.mjs "x"', 'sed -i "s/a/b/" .claude/hooks/vigilar-bash.mjs',
+    'cat > .claude/hooks/x.mjs <<EOF\ncontenido\nEOF',
+  ]) {
+    assert.equal(vb(c), 'ask', c);
+  }
+  // el cuerpo de un heredoc es contenido, no comandos
+  assert.equal(vb("cat > notas.txt <<'EOF'\ndel laravel/routes/web.php\nEOF"), 'none');
+});
+
 // ---------- revisar-cambio ----------
 function rc(rel, contenido) {
   const r = repoTemporal();
