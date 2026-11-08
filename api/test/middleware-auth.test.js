@@ -138,12 +138,15 @@ describe('B2-08 revocación por estado del usuario', () => {
 });
 
 describe('B2-09 identidad del vendedor', () => {
-  test('vendedor_id o usuario_id en la consulta no cambian la identidad: se usa el sub del token', async () => {
+  // Desde B3, GET /api/clientes rechaza con 400 los parámetros de consulta no admitidos
+  // (B3 §3 y decisión D6 propuesta). La identidad sigue saliendo solo del token.
+  test('vendedor_id o usuario_id en la consulta no cambian la identidad: 400 y ninguna consulta de clientes', async () => {
     bd.llamadas.length = 0;
     const r = await clientes(bearer(firmarToken(4)), '/api/clientes?vendedor_id=5&usuario_id=5&id=5');
-    assert.equal(r.status, 200);
-    assert.ok(r.json.every((c) => c.nombre !== 'Cliente de Otro Vendedor'));
-    const consulta = bd.llamadas.find((l) => /FROM clientes WHERE vendedor_id = \?/.test(l.sql));
-    assert.deepEqual(consulta.params, [4]);
+    assert.equal(r.status, 400);
+    assert.deepEqual(Object.keys(r.json), ['error']);
+    assert.ok(!bd.llamadas.some((l) => /FROM clientes/.test(l.sql)));
+    const usuario = bd.llamadas.find((l) => /FROM users WHERE id = \?/.test(l.sql));
+    assert.deepEqual(usuario.params, [4]);
   });
 });
