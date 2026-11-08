@@ -197,3 +197,13 @@ export async function ejecutarHook(principal) {
     process.exit(1);
   }
 }
+
+/** ¿El archivo ya está versionado en Git? (las migraciones versionadas no se editan) */
+export function estaVersionado(rel, raiz) {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', rel], { cwd: raiz, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
