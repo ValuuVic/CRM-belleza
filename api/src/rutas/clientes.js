@@ -12,7 +12,8 @@ import { crearAutenticacion } from '../middleware/auth.js';
 import { conTransaccion } from '../utils/transaccion.js';
 import { conflicto, noEncontrado, peticionInvalida } from '../utils/errores.js';
 import { bloquearVendedor } from '../servicios/vendedores.js';
-import { CAMPOS_CLIENTE, exigirConsulta, exigirCuerpoObjeto, idValido, validarCliente } from '../utils/validaciones.js';
+import { SQL_ACTIVIDADES, leerActividad, validarActividad } from '../servicios/actividades.js';
+import { CAMPOS_CLIENTE, exigirConsulta, exigirCuerpoObjeto, exigirIdRuta, validarCliente } from '../utils/validaciones.js';
 
 export const MAXIMO_CARTERA = 10; // R3
 export const LONGITUD_MAXIMA_BUSQUEDA = 100;
@@ -39,11 +40,7 @@ export function serializarCliente(fila) {
 }
 
 /** Identificador de cliente de la ruta; si no es un entero positivo → 404 sin consultar (B3-06). */
-function idDeRuta(req) {
-  const id = idValido(req.params.id);
-  if (id === null) throw noEncontrado(MENSAJE_NO_ENCONTRADO);
-  return id;
-}
+const idDeRuta = (req) => exigirIdRuta(req.params.id, MENSAJE_NO_ENCONTRADO);
 
 /** Escapa los comodines de LIKE con "!" (ESCAPE '!'), independiente de NO_BACKSLASH_ESCAPES. */
 const escaparLike = (texto) => texto.replace(/[!%_]/g, (c) => `!${c}`);
@@ -203,6 +200,37 @@ export function crearRutasClientes({ pool }) {
     }, pool);
 
     res.status(200).json(cliente);
+  });
+
+  // POST /api/clientes/:id/actividades { tipo, descripcion, vence_en? } → 201 con la actividad (B5-05 a B5-10).
+  // Cliente ajeno, disponible o inexistente → 404 (S5), comprobado antes que los campos (D10).
+  // El cliente queda bloqueado hasta el commit: una reasignación simultánea desde el panel espera, y
+  // si ya ocurrió, el bloqueo ve al nuevo dueño y responde 404 (B5-15). vendedor_id sale del token.
+  router.post('/:id/actividades', async (req, res) => {
+    const id = idDeRuta(req);
+    exigirConsulta(req);
+    const cuerpo = exigirCuerpoObjeto(req);
+    const vendedorId = req.vendedor.id;
+
+    const actividad = await conTransaccion(async (conn) => {
+      await bloquearVendedor(conn, vendedorId); // orden D17: vendedor → cliente
+      const [propias] = await conn.execute(
+        'SELECT id FROM clientes WHERE id = ? AND vendedor_id = ? FOR UPDATE',
+        [id, vendedorId],
+      );
+      if (!propias[0]) throw noEncontrado(MENSAJE_NO_ENCONTRADO);
+      const datos = validarActividad(cuerpo);
+      const [resultado] = await conn.execute(
+        SQL_ACTIVIDADES.insertar,
+        [id, vendedorId, datos.tipo, datos.descripcion, datos.vence_en],
+      );
+      // La primera lectura sin bloqueo es esta (después del INSERT): su instantánea incluye la fila nueva.
+      const creada = await leerActividad(conn, resultado.insertId, vendedorId);
+      if (!creada) throw new Error('La actividad recién creada no se pudo leer'); // rollback y 500 genérico
+      return creada;
+    }, pool);
+
+    res.status(201).json(actividad);
   });
 
   return router;

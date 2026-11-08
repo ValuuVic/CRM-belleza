@@ -14,7 +14,8 @@ import { crearAutenticacion } from '../middleware/auth.js';
 import { conTransaccion } from '../utils/transaccion.js';
 import { ErrorHttp, ErrorValidacion, noEncontrado, peticionInvalida } from '../utils/errores.js';
 import {
-  exigirConsulta, exigirCuerpoObjeto, idValido, idCuerpo, cantidadValida, textoObligatorio,
+  exigirConsulta, exigirCuerpoObjeto, exigirIdRuta as idRuta, exigirCampo, reunir, idCuerpo, cantidadValida,
+  textoObligatorio,
 } from '../utils/validaciones.js';
 import { ETAPA_INICIAL, ETAPAS, esEtapa, validarTransicion } from '../servicios/embudo.js';
 import { bloquearVendedor } from '../servicios/vendedores.js';
@@ -32,29 +33,6 @@ const MENSAJE_LINEA_NO_ENCONTRADA = 'Línea de producto no encontrada';
 
 const validarTitulo = (valor) => textoObligatorio(valor, { maximo: LONGITUD_TITULO, vacio: 'Ingrese el título de la oportunidad', etiqueta: 'El título' });
 const validarMotivo = (valor) => textoObligatorio(valor, { maximo: LONGITUD_MOTIVO, vacio: 'Indique el motivo de la pérdida', etiqueta: 'El motivo' });
-
-function idRuta(valor, mensaje) {
-  const id = idValido(valor);
-  if (id === null) throw noEncontrado(mensaje);
-  return id;
-}
-
-/** Reúne { campo: { valor } | { error } } y lanza 422 si hay errores; si no, devuelve los valores. */
-function reunir(campos) {
-  const errores = {};
-  const valores = {};
-  for (const [campo, r] of Object.entries(campos)) {
-    if (r.error) errores[campo] = r.error;
-    else valores[campo] = r.valor;
-  }
-  if (Object.keys(errores).length) throw new ErrorValidacion(errores);
-  return valores;
-}
-
-/** Exige que el cuerpo traiga el campo editable; si no hay nada que actualizar → 400 (como en B3). */
-function exigirCampo(cuerpo, campo) {
-  if (!Object.hasOwn(cuerpo, campo) || cuerpo[campo] === undefined) throw peticionInvalida(`Indique el campo ${campo}`);
-}
 
 export function crearRutasOportunidades({ pool }) {
   const router = Router();

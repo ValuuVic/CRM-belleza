@@ -7,13 +7,15 @@ import { obtenerEstado, actualizar, suscribir, guardarSesion, cerrarSesion } fro
 import { iniciarSesion } from './api.js';
 import * as cartera from './acciones-cartera.js';
 import * as oportunidades from './acciones-oportunidades.js';
+import * as actividades from './acciones-actividades.js';
 import { escaparHtml } from './util/escape.js';
 import { renderLogin } from './vistas/login.js';
 import { renderCartera } from './vistas/cartera.js';
 import { renderOportunidades } from './vistas/oportunidades.js';
 import { renderOportunidad } from './vistas/oportunidad.js';
+import { renderActividades } from './vistas/actividades.js';
 
-const RUTAS_PROTEGIDAS = new Set(['#/cartera', '#/oportunidades', '#/resumen']);
+const RUTAS_PROTEGIDAS = new Set(['#/cartera', '#/oportunidades', '#/actividades', '#/resumen']);
 const RUTAS = new Set(['#/login', ...RUTAS_PROTEGIDAS]);
 const RUTA_DETALLE = /^#\/oportunidades\/([1-9]\d{0,15})$/; // detalle de una oportunidad (B4)
 const esProtegida = (ruta) => RUTAS_PROTEGIDAS.has(ruta) || RUTA_DETALLE.test(ruta);
@@ -35,6 +37,7 @@ function renderVista(estado) {
   switch (estado.ruta) {
     case '#/cartera': return renderCartera(estado);
     case '#/oportunidades': return renderOportunidades(estado);
+    case '#/actividades': return renderActividades(estado);
     case '#/resumen': return renderResumenReservado();
     default: return renderLogin(estado);
   }
@@ -130,6 +133,7 @@ function alCambiarRuta() {
   actualizar({ ruta });
   if (ruta === '#/cartera') cartera.cargarCartera();
   if (ruta === '#/oportunidades') oportunidades.cargarTablero();
+  if (ruta === '#/actividades') actividades.cargarActividades();
   const detalle = RUTA_DETALLE.exec(ruta);
   if (detalle) oportunidades.cargarDetalle(detalle[1]);
 }
@@ -168,6 +172,11 @@ document.addEventListener('submit', (evento) => {
       evento.preventDefault();
       oportunidades.confirmarPerdida(new FormData(formulario).get('motivo_perdida'));
       break;
+    // B5: actividades
+    case 'form-actividad':
+      evento.preventDefault();
+      actividades.enviarNueva(Object.fromEntries(new FormData(formulario)));
+      break;
     default:
       if (formulario.dataset?.formulario === 'linea') { // cantidad de una línea (una por fila)
         evento.preventDefault();
@@ -200,6 +209,12 @@ document.addEventListener('click', (evento) => {
     case 'cambiar-etapa': actualizar({ aviso: null }); oportunidades.cambiarEtapa(boton.dataset.etapa); break;
     case 'cancelar-perdida': oportunidades.cancelarPerdida(); break;
     case 'quitar-linea': actualizar({ aviso: null }); oportunidades.quitarProducto(id); break;
+    // B5: actividades
+    case 'nueva-actividad': actualizar({ aviso: null }); actividades.abrirNueva(); break;
+    case 'cancelar-actividad': actividades.cancelarNueva(); break;
+    case 'pestana-actividades': actividades.cambiarPestana(boton.dataset.estado); break;
+    case 'completar-actividad': actualizar({ aviso: null }); actividades.completar(id); break;
+    case 'reintentar-actividades': actividades.cargarActividades(); break;
     default: break;
   }
 });

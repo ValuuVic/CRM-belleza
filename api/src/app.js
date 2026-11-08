@@ -10,6 +10,7 @@ import { crearRutasAuth } from './rutas/auth.js';
 import { crearRutasClientes } from './rutas/clientes.js';
 import { crearRutasProductos } from './rutas/productos.js';
 import { crearRutasOportunidades } from './rutas/oportunidades.js';
+import { crearRutasActividades } from './rutas/actividades.js';
 
 /**
  * @param {{ origenPermitido?: string, pool?: { execute: Function } }} [opciones]
@@ -40,6 +41,7 @@ export function crearApp({ origenPermitido = process.env.CORS_ORIGIN, pool = poo
   app.use('/api/clientes', crearRutasClientes({ pool }));
   app.use('/api/productos', crearRutasProductos({ pool }));
   app.use('/api/oportunidades', crearRutasOportunidades({ pool }));
+  app.use('/api/actividades', crearRutasActividades({ pool }));
   // Parte A (docs/plan.md §3.4): aquí se montará el router de api/src/rutas/reportes.js en /api/reportes.
 
   app.use(rutaNoEncontrada);

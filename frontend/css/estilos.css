@@ -17,6 +17,11 @@ body {
   min-width: 0;
 }
 
+/* Actividades (B5): el texto de cada actividad se parte en vez de empujar el botón «Completar». */
+.min-w-0 {
+  min-width: 0;
+}
+
 /* Cantidad de cada línea de producto en el detalle de una oportunidad (B4). */
 .cantidad-linea {
   width: 5.5rem;
