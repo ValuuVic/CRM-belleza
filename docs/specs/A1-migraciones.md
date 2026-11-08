@@ -18,12 +18,13 @@ Crear con migraciones de Laravel el esquema de la sección 4 (tablas, llaves for
 - Migraciones de `productos`, `clientes`, `oportunidades`, `oportunidad_productos`, `historial_etapas` y `actividades`.
 - Migración nueva que agrega `productos.stock` con su CHECK.
 - Llaves foráneas, cascadas, índices únicos y restricciones CHECK (con `DB::statement`).
-- `VerificacionSeeder` y su llamada desde `DatabaseSeeder`.
+- `VerificacionSeeder` y su llamada desde `DatabaseSeeder`, seguida de `SectorSeeder` (vacío en esta fase).
+- Modelos Eloquent de las 7 tablas con sus relaciones y casts (`decimal:2`, `boolean`, `datetime`); `HistorialEtapa` con `UPDATED_AT = null`.
 
 ### Fuera del alcance
 
-- `SectorSeeder` (spec propia).
-- Modelos Eloquent, políticas, FormRequest y vistas del panel (A2 en adelante).
+- El contenido de `SectorSeeder` (spec propia).
+- Políticas, FormRequest y vistas del panel (A2 en adelante).
 - Cualquier archivo de `api/` o `frontend/`.
 - Editar las migraciones originales de Laravel (`0001_01_01_*`).
 
@@ -31,7 +32,7 @@ Crear con migraciones de Laravel el esquema de la sección 4 (tablas, llaves for
 
 - Laravel 13 sobre MySQL 8.4 (`DB_CONNECTION=mysql`), conexión con `'timezone' => '+00:00'`.
 - Montos en DECIMAL(10,2), nunca FLOAT.
-- CHECK con `DB::statement('ALTER TABLE … ADD CONSTRAINT chk_… CHECK (…)')`, con nombre explícito.
+- CHECK con `DB::statement('ALTER TABLE … ADD CONSTRAINT chk_<tabla>_<regla> CHECK (…)')`, con nombre explícito.
 - Ninguna migración versionada se edita: los cambios posteriores llegan con migraciones nuevas.
 - Contraseñas con `Hash::make('Ventas2026')`; `Ventas2026` solo aparece en la semilla.
 - La semilla usa el constructor de consultas (`DB::table`) con id explícitos, en el orden de las tablas de la sección 6.
@@ -83,12 +84,12 @@ Orden de migraciones (fecha `2026_11_08`, sufijos consecutivos):
 | oportunidades | fecha_cierre | DATETIME | NULL | `chk_oportunidades_cierre`: (etapa IN ('ganada','perdida')) = (fecha_cierre IS NOT NULL) |
 | oportunidad_productos | oportunidad_id | BIGINT UNSIGNED | NOT NULL | FK oportunidades.id CASCADE |
 | oportunidad_productos | producto_id | BIGINT UNSIGNED | NOT NULL | FK productos.id RESTRICT; UNIQUE (oportunidad_id, producto_id) |
-| oportunidad_productos | cantidad | SMALLINT UNSIGNED | NOT NULL | `chk_op_cantidad`: BETWEEN 1 AND 999 |
-| oportunidad_productos | precio_unitario | DECIMAL(10,2) | NOT NULL | `chk_op_precio`: precio_unitario > 0 |
+| oportunidad_productos | cantidad | SMALLINT UNSIGNED | NOT NULL | `chk_oportunidad_productos_cantidad`: BETWEEN 1 AND 999 |
+| oportunidad_productos | precio_unitario | DECIMAL(10,2) | NOT NULL | `chk_oportunidad_productos_precio`: precio_unitario > 0 |
 | historial_etapas | oportunidad_id | BIGINT UNSIGNED | NOT NULL | FK oportunidades.id CASCADE |
 | historial_etapas | usuario_id | BIGINT UNSIGNED | NOT NULL | FK users.id RESTRICT |
-| historial_etapas | etapa_anterior | VARCHAR(20) | NULL | `chk_historial_etapa_anterior`: NULL o IN (6 etapas) |
-| historial_etapas | etapa_nueva | VARCHAR(20) | NOT NULL | `chk_historial_etapa_nueva`: IN (6 etapas) |
+| historial_etapas | etapa_anterior | VARCHAR(20) | NULL | `chk_historial_etapas_etapa_anterior`: NULL o IN (6 etapas) |
+| historial_etapas | etapa_nueva | VARCHAR(20) | NOT NULL | `chk_historial_etapas_etapa_nueva`: IN (6 etapas) |
 | historial_etapas | created_at | DATETIME | NOT NULL | sin `updated_at` |
 | actividades | cliente_id | BIGINT UNSIGNED | NOT NULL | FK clientes.id CASCADE |
 | actividades | vendedor_id | BIGINT UNSIGNED | NOT NULL | FK users.id RESTRICT |
@@ -315,7 +316,9 @@ Si Valeria da 5650.00 en octubre, se agrupó en UTC; si da 9551.00, se usó el p
 
 - `laravel/database/migrations/2026_11_08_00000{1..8}_*.php` (las 8 migraciones de la sección 5).
 - `laravel/database/seeders/VerificacionSeeder.php`.
-- `laravel/database/seeders/DatabaseSeeder.php` (llama a `VerificacionSeeder`; `SectorSeeder` se agrega en su fase).
+- `laravel/database/seeders/DatabaseSeeder.php` (llama a `VerificacionSeeder` y luego a `SectorSeeder`).
+- `laravel/database/seeders/SectorSeeder.php` (vacío; se llena en su fase).
+- `laravel/app/Models/`: `User.php` (se amplía), `Producto.php`, `Cliente.php`, `Oportunidad.php`, `OportunidadProducto.php`, `HistorialEtapa.php` y `Actividad.php`.
 
 No crear archivos adicionales que no sean necesarios.
 
