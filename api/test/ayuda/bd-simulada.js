@@ -16,6 +16,7 @@
 // clientes con vendedor_id). NO son la semilla oficial: VerificacionSeeder es de la Parte A (I1).
 import bcrypt from 'bcryptjs';
 import { crearConsultasOportunidades } from './consultas-oportunidades.js';
+import { crearConsultasActividades } from './consultas-actividades.js';
 
 export const CLAVE_PRUEBA = 'Clave.Prueba-2026';
 // Coste bajo para que las pruebas sean rápidas; prefijo $2y$ como en los hashes de Laravel.
@@ -145,6 +146,8 @@ export function crearBdSimulada() {
   const b4 = crearConsultasOportunidades({
     users, clientes, bloquear, insertarFila, actualizarFila, eliminarFila,
   });
+  // Tabla y consultas de B5 (actividades).
+  const b5 = crearConsultasActividades({ clientes, bloquear, insertarFila, actualizarFila });
 
   // ---------- Motor de consultas ----------
   async function ejecutar(sql, params = [], tx = null) {
@@ -157,6 +160,8 @@ export function crearBdSimulada() {
     // B4: consultas exactas de servicios/oportunidades.js y rutas de oportunidades y productos.
     const resultadoB4 = await b4.ejecutar(sql, params, tx);
     if (resultadoB4 !== undefined) return resultadoB4;
+    const resultadoB5 = await b5.ejecutar(sql, params, tx);
+    if (resultadoB5 !== undefined) return resultadoB5;
 
     // users
     if (/FROM users WHERE email = \?/i.test(sql)) {
@@ -266,7 +271,7 @@ export function crearBdSimulada() {
     async getConnection() { await ceder(); return crearConexion(); },
   };
 
-  return { pool, users, clientes, ...b4.tablas, llamadas, estadisticas, fallos, ganchos, bloqueos };
+  return { pool, users, clientes, ...b4.tablas, actividades: b5.actividades, llamadas, estadisticas, fallos, ganchos, bloqueos };
 }
 
 /** Levanta una app en un puerto libre de 127.0.0.1. */

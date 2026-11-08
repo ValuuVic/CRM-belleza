@@ -7,12 +7,11 @@
 //   si algo falla, el rollback deshace el descuento de stock, la etapa y el historial (RP-3, B4-C3).
 
 import { ErrorValidacion, conflicto, noEncontrado } from '../utils/errores.js';
+import { fechaIso as aIso } from '../utils/validaciones.js';
 import { PROBABILIDAD, estaCerrada, MENSAJE_CERRADA } from './embudo.js';
 
 export const MENSAJE_OPORTUNIDAD_NO_ENCONTRADA = 'Oportunidad no encontrada';
 export const MENSAJE_SIN_PRODUCTOS = 'Agregue al menos un producto antes de ganar la oportunidad';
-
-const aIso = (fecha) => (fecha instanceof Date ? fecha.toISOString() : fecha ?? null);
 
 const SQL_HISTORIAL_INSERTAR =
   'INSERT INTO historial_etapas (oportunidad_id, usuario_id, etapa_anterior, etapa_nueva, created_at) VALUES (?, ?, ?, ?, UTC_TIMESTAMP())';

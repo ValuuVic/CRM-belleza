@@ -4,7 +4,7 @@
 // exigirCuerpoObjeto y validarCliente (al final del archivo) sí lanzan ErrorHttp/ErrorValidacion,
 // porque las usan directamente los manejadores de ruta.
 
-import { ErrorValidacion, peticionInvalida } from './errores.js';
+import { ErrorValidacion, noEncontrado, peticionInvalida } from './errores.js';
 
 /**
  * Normaliza y valida un NIT guatemalteco (R4).
@@ -96,8 +96,18 @@ export function fechaUtc(valor) {
   if (fueraDeRango) return { valido: false, fecha: null };
 
   const fecha = new Date(valor);
-  return Number.isNaN(fecha.getTime()) ? { valido: false, fecha: null } : { valido: true, fecha };
+  if (Number.isNaN(fecha.getTime())) return { valido: false, fecha: null };
+  // Rango de DATETIME en MySQL (años 1000–9999), medido ya en UTC: "9999-12-31T23:00-06:00" pasa a
+  // 10000 y MySQL lo rechazaría con un error sin traducir (500); aquí es un dato inválido (422).
+  const anioUtc = fecha.getUTCFullYear();
+  return anioUtc < 1000 || anioUtc > 9999 ? { valido: false, fecha: null } : { valido: true, fecha };
 }
+
+/**
+ * Fecha de MySQL (mysql2 con timezone 'Z' entrega Date) → ISO 8601 UTC con Z (R8).
+ * null/undefined → null. Compartida por oportunidades (B4) y actividades (B5).
+ */
+export const fechaIso = (fecha) => (fecha instanceof Date ? fecha.toISOString() : fecha ?? null);
 
 /**
  * Exige que el cuerpo de la petición sea un objeto JSON (B2-02, B3-07); si no, 400.
@@ -196,7 +206,34 @@ export function validarCliente(cuerpo, { parcial = false } = {}) {
 // ---------------------------------------------------------------------------
 
 /**
- * Parámetros de consulta admitidos por la ruta (decisión D6 propuesta, confirmada para B3 y B4):
+ * Identificador de ruta obligatorio (D9): si no es un entero positivo → 404 con `mensaje`, sin
+ * consultar la base. Mismo mensaje que un registro ajeno o inexistente (S5).
+ */
+export function exigirIdRuta(valor, mensaje) {
+  const id = idValido(valor);
+  if (id === null) throw noEncontrado(mensaje);
+  return id;
+}
+
+/** Exige que el cuerpo traiga el campo editable; si no hay nada que actualizar → 400 (D16). */
+export function exigirCampo(cuerpo, campo) {
+  if (!Object.hasOwn(cuerpo, campo) || cuerpo[campo] === undefined) throw peticionInvalida(`Indique el campo ${campo}`);
+}
+
+/** Reúne { campo: { valor } | { error } } y lanza 422 si hay errores; si no, devuelve los valores. */
+export function reunir(campos) {
+  const errores = {};
+  const valores = {};
+  for (const [campo, r] of Object.entries(campos)) {
+    if (r.error) errores[campo] = r.error;
+    else valores[campo] = r.valor;
+  }
+  if (Object.keys(errores).length) throw new ErrorValidacion(errores);
+  return valores;
+}
+
+/**
+ * Parámetros de consulta admitidos por la ruta (decisión D6, decidida en docs/especificacion.md):
  * cualquier otro parámetro o un parámetro repetido → 400. Mensajes fijos: no se repite en la
  * respuesta el nombre enviado por el cliente.
  */
