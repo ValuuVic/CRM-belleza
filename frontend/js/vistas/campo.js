@@ -13,6 +13,12 @@ export const spinner = (texto) => `
     <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ${e(texto)}
   </div>`;
 
+/** Indicador discreto de recarga cuando la vista ya tiene datos que mostrar (B6-02). */
+export const actualizando = `
+  <div class="small text-body-secondary d-flex align-items-center gap-2 mb-2" role="status">
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Actualizando…
+  </div>`;
+
 /**
  * @param {{ id: string, nombre: string, tipo?: string, etiqueta: string, valor?: string | number, error?: string,
  *   autocompletar?: string, cargando?: boolean, requerido?: boolean, ayuda?: string, maxlength?: number,

@@ -6,7 +6,7 @@
 
 import { escaparHtml } from '../util/escape.js';
 import { formatearFecha } from '../util/formato.js';
-import { campo, spinner } from './campo.js';
+import { campo, spinner, actualizando } from './campo.js';
 
 export const ETIQUETA_TIPO = Object.freeze({ llamada: 'Llamada', reunion: 'Reunión', tarea: 'Tarea' });
 const PESTANAS = [['pendiente', 'Pendientes'], ['completada', 'Completadas']];
@@ -64,6 +64,7 @@ function renderLista(a) {
   }
   const vencidas = a.lista.filter((x) => x.vencida).length;
   return `
+    ${a.cargando ? actualizando : ''}
     ${vencidas ? `<p class="small text-danger mb-2">${vencidas === 1 ? '1 actividad vencida' : `${vencidas} actividades vencidas`}</p>` : ''}
     <ul class="list-group" aria-label="Actividades">${a.lista.map((x) => renderActividad(x, a.completando)).join('')}</ul>`;
 }

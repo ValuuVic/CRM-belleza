@@ -5,8 +5,9 @@
 // - Un 409 (cerrada, duplicado o stock insuficiente) se muestra como mensaje y el detalle se queda
 //   como estaba: solo se reemplaza con lo que confirme la API (B4-25).
 // - El total, los subtotales y el precio los calcula el servidor; la SPA nunca los envía (B4-07, B4-20).
+// - Una respuesta de otra sesión (S4) o de una consulta ya superada se descarta (B6-01, B6-08).
 
-import { obtenerEstado, actualizar, detalleInicial } from './estado.js';
+import { obtenerEstado, actualizar, detalleInicial, tokenActual, sigueLaSesion } from './estado.js';
 import {
   obtenerClientes, obtenerProductos, obtenerOportunidades, obtenerOportunidad, crearOportunidad,
   actualizarTitulo, cambiarEtapa as pedirCambioEtapa, agregarLinea as pedirAgregarLinea,
@@ -36,18 +37,23 @@ export function aNumero(texto) {
 
 // ---------- Tablero ----------
 
+let consultaVigente = 0; // dos recargas seguidas del tablero: solo cuenta la última
+
 export async function cargarTablero() {
+  const consulta = ++consultaVigente;
+  const token = tokenActual();
   cambiarTablero({ cargando: true, error: null });
   const r = await obtenerOportunidades();
-  if (r.status === 401) return;
+  if (!sigueLaSesion(token, r) || consulta !== consultaVigente) return;
   if (r.ok && Array.isArray(r.datos)) cambiarTablero({ cargando: false, cargada: true, lista: r.datos });
   else cambiarTablero({ cargando: false, error: mensajeDe(r, 'No se pudieron cargar las oportunidades.') });
 }
 
 export async function abrirNueva() {
+  const token = tokenActual();
   cambiarTablero({ formulario: { valores: { cliente_id: '', titulo: '' }, errores: {}, mensaje: null, enviando: false, cargandoClientes: true } });
   const r = await obtenerClientes();
-  if (r.status === 401) return;
+  if (!sigueLaSesion(token, r)) return;
   if (r.ok && Array.isArray(r.datos)) {
     cambiarTablero({ clientes: r.datos.map((c) => ({ id: c.id, nombre: c.nombre })) });
     cambiarFormulario({ cargandoClientes: false });
@@ -63,9 +69,10 @@ export async function enviarNueva(datos) {
   const f = tablero().formulario;
   if (!f || f.enviando) return;
   const valores = { cliente_id: String(datos?.cliente_id ?? ''), titulo: String(datos?.titulo ?? '') };
+  const token = tokenActual();
   cambiarFormulario({ valores, errores: {}, mensaje: null, enviando: true });
   const r = await crearOportunidad({ cliente_id: aNumero(valores.cliente_id), titulo: valores.titulo });
-  if (r.status === 401) return;
+  if (!sigueLaSesion(token, r)) return; // nunca cambia la ruta de otra sesión
   if (r.ok && r.datos?.id) {
     cambiarTablero({ formulario: null });
     actualizar({ aviso: { tipo: 'success', texto: 'Oportunidad creada en prospecto.' } });
@@ -81,9 +88,10 @@ export async function enviarNueva(datos) {
 export async function cargarDetalle(id) {
   const base = obtenerEstado().detalle;
   const mismo = String(base.id) === String(id);
+  const token = tokenActual();
   actualizar({ detalle: { ...(mismo ? base : detalleInicial()), id: String(id), cargando: true, error: null } });
   const [r, catalogo] = await Promise.all([obtenerOportunidad(id), obtenerProductos()]);
-  if (r.status === 401 || catalogo.status === 401) return;
+  if (!sigueLaSesion(token, r) || !sigueLaSesion(token, catalogo)) return;
   if (String(detalle().id) !== String(id)) return; // el usuario ya abrió otra oportunidad
   if (r.ok && r.datos && typeof r.datos === 'object') {
     cambiarDetalle({
@@ -106,17 +114,24 @@ async function modificar(accion, peticion, { exito, al422 }) {
   const d = detalle();
   if (!d.datos || d.enviando) return false;
   const id = d.id;
+  const token = tokenActual();
   cambiarDetalle({ enviando: accion, mensaje: null });
   const r = await peticion(id);
-  if (r.status === 401) return false;
+  if (!sigueLaSesion(token, r)) return false;
   if (String(detalle().id) !== String(id)) return false;
 
   if (r.ok) {
     let datos = r.datos;
     if (r.status === 204) { // DELETE de una línea: se vuelve a pedir el detalle confirmado
       const d2 = await obtenerOportunidad(id);
-      if (d2.status === 401) return false;
-      datos = d2.ok ? d2.datos : detalle().datos;
+      if (!sigueLaSesion(token, d2) || String(detalle().id) !== String(id)) return false;
+      if (!d2.ok || !d2.datos || typeof d2.datos !== 'object') {
+        // El cambio sí se hizo, pero no hay un detalle confirmado que mostrar: no se deja a la vista
+        // la línea ya quitada ni un total viejo (B6-05); se ofrece reintentar la carga.
+        cambiarDetalle({ enviando: null, datos: null, error: `${exito} No se pudo cargar el detalle actualizado: ${mensajeDe(d2, 'inténtelo de nuevo.')}` });
+        return true;
+      }
+      datos = d2.datos;
     }
     cambiarDetalle({ enviando: null, datos, mensaje: { tipo: 'success', texto: exito } });
     return true;

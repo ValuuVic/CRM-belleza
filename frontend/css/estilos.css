@@ -1,14 +1,23 @@
 /* Ajustes mínimos sobre Bootstrap 5.3 para la SPA del vendedor. */
 
-/* Evita el desplazamiento horizontal de la página en pantallas de 375 px (CA-14). */
-html,
-body {
-  overflow-x: hidden;
+/* Sin desplazamiento horizontal a 375 px (CA-14, B6-04): se consigue con el propio diseño (columnas
+   que se ocultan o se apilan en pantallas pequeñas), no con `overflow-x: hidden`, que solo escondía
+   el contenido que se salía y dejaba controles cortados sin que se notara. */
+
+/* Los textos solo para lectores de pantalla (.visually-hidden, position:absolute) dentro de una tabla
+   desplazable se escapaban de su recorte y ensanchaban la página a 375 px (B6-04). */
+.table-responsive {
+  position: relative;
 }
 
 /* Nombres y correos largos se parten (clase .text-break); NIT y teléfono no (.text-nowrap).
    Si aun así la tabla no cabe, .table-responsive la desplaza dentro de su contenedor. */
 .table td.text-break {
+  overflow-wrap: anywhere;
+}
+
+/* Avisos y mensajes de error con textos largos sin espacios (p. ej. una búsqueda) se parten (B6-04). */
+.alert {
   overflow-wrap: anywhere;
 }
 

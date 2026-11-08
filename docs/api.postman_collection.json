@@ -1,0 +1,4984 @@
+{
+  "info": {
+    "name": "CRM Belleza — API REST del vendedor",
+    "description": "Colección de la API Express de CRM Belleza (contrato: docs/especificacion.md §8).\nUna petición por endpoint como mínimo, los errores principales (400, 401, 403, 404, 409, 422) y la regla propia de stock (RP-01 a RP-04).\n\nADVERTENCIA: las carpetas 05 a 08 crean y modifican datos (clientes, actividades, oportunidades, ventas y stock). Ejecútelas solo contra el modo demostración (npm run demo) o contra una base de pruebas que se pueda restablecer; nunca contra la base compartida.\n\nOrden: ejecute la colección completa de arriba abajo (Runner). La carpeta 01 guarda los tokens y la 03 elige los productos. Las carpetas 01 a 04 solo leen; la 04 (resumen) va antes de las que escriben para que las cifras de control se comprueben sobre la semilla intacta.\n\nVariables con la semilla oficial (VerificacionSeeder): correo_vendedora = valeria@crm.test y clave = la contraseña pública de la semilla. Complete correo_vendedor_b, correo_admin, correo_supervisor y correo_inactivo con las cuentas del enunciado (§11) cuando la Parte A publique la semilla.\nVariables para el modo demostración (base simulada, datos ficticios de api/test/ayuda/bd-simulada.js): baseUrl = http://127.0.0.1:3000/api, correo_vendedora = vendedora1@prueba.test, correo_vendedor_b = vendedor2@prueba.test, correo_admin = admin@prueba.test, correo_supervisor = supervisora@prueba.test, correo_inactivo = inactivo@prueba.test y clave = la constante CLAVE_PRUEBA de ese archivo. Reinicie la demo antes de cada ejecución para partir de los mismos datos.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 Autenticación (A1)",
+      "description": "POST /auth/login. Solo los vendedores activos reciben token. Ejecute esta carpeta primero: guarda {{token}} (vendedora A) y {{token_b}} (vendedor B) y prepara los ids de recursos ajenos.",
+      "item": [
+        {
+          "name": "Login vendedora A → 200 (guarda token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Respuesta §8.1 { token, usuario { id, nombre, correo } }\", () => { const j = pm.response.json(); pm.expect(Object.keys(j).sort()).to.eql(['token', 'usuario']); pm.expect(Object.keys(j.usuario).sort()).to.eql(['correo', 'id', 'nombre']); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo_vendedora}}\",\n  \"clave\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login vendedor B → 200 (guarda token_b)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token_b', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo_vendedor_b}}\",\n  \"clave\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Preparar: un cliente del vendedor B (cliente_ajeno_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"B tiene al menos un cliente\", () => { const j = pm.response.json(); pm.expect(j).to.be.an('array').that.is.not.empty; });",
+                  "pm.collectionVariables.set('cliente_ajeno_id', pm.response.json()[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_b}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Preparar: una oportunidad del vendedor B (oportunidad_ajena_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"B tiene al menos una oportunidad\", () => { const j = pm.response.json(); pm.expect(j).to.be.an('array').that.is.not.empty; });",
+                  "pm.collectionVariables.set('oportunidad_ajena_id', pm.response.json()[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_b}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login con clave incorrecta → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo_vendedora}}\",\n  \"clave\": \"Clave-Incorrecta-1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login de correo inexistente → 401 (mismo mensaje)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"nadie@crm.test\",\n  \"clave\": \"Clave-Incorrecta-1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login de administrador → 403 sin token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });",
+                  "pm.test('No entrega token', () => pm.expect(pm.response.json()).to.not.have.property('token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo_admin}}\",\n  \"clave\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login de supervisor → 403 sin token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });",
+                  "pm.test('No entrega token', () => pm.expect(pm.response.json()).to.not.have.property('token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo_supervisor}}\",\n  \"clave\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login de vendedor desactivado → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"{{correo_inactivo}}\",\n  \"clave\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login con JSON mal formado → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"correo\": \"valeria@crm.test\", ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login sin cuerpo → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login con datos inválidos → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.correo', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('correo'); pm.expect(j.errores.correo).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"no-es-un-correo\",\n  \"clave\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Errores generales (A2, A7, D9)",
+      "description": "Token obligatorio, token alterado, ruta inexistente e identificador no numérico.",
+      "item": [
+        {
+          "name": "Sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Token alterado → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}x"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Ruta inexistente → 404 en JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ruta-que-no-existe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ruta-que-no-existe"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Identificador no numérico → 404 (D9)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/abc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "abc"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Productos (A4, D12)",
+      "description": "Catálogo activo para vendedores. También elige los productos que usa la carpeta de la regla propia.",
+      "item": [
+        {
+          "name": "Catálogo activo → 200 (prepara productos para RP)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Forma { id, nombre, precio, stock } con precio numérico\", () => { const j = pm.response.json(); pm.expect(j).to.be.an('array'); j.forEach((p) => { pm.expect(Object.keys(p).sort()).to.eql(['id', 'nombre', 'precio', 'stock']); pm.expect(p.precio).to.be.a('number'); }); });",
+                  "const lista = pm.response.json();",
+                  "const conStock = lista.filter((p) => Number.isInteger(p.stock)).sort((a, b) => b.stock - a.stock);",
+                  "const sinControl = lista.find((p) => p.stock === null);",
+                  "if (sinControl) pm.collectionVariables.set('producto_sin_control', sinControl.id);",
+                  "if (conStock.length) pm.collectionVariables.set('producto_con_stock', conStock[0].id);",
+                  "if (conStock.length > 1) pm.collectionVariables.set('producto_stock_bajo', conStock[conStock.length - 1].id);",
+                  "pm.test('Hay productos con stock controlado para RP-01 a RP-03 (si falla: los prepara la Parte A con SectorSeeder o el panel)', () => pm.expect(conStock.length).to.be.at.least(2));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Parámetro no admitido → 400 (D6)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/productos?orden=precio",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "orden",
+                  "value": "precio"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Resumen mensual (A6 — implementación de la Parte A)",
+      "description": "GET /reportes/resumen lo implementa la Parte A; la Parte B solo incluye estas peticiones. Va antes de las carpetas que escriben: sus cifras de control solo valen con VerificacionSeeder recién cargado y el token de Valeria, sin cambios previos. En la demostración responde 404 (no implementado allí).",
+      "item": [
+        {
+          "name": "Octubre de 2026 → cifras de control",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Cifras de control de Valeria (§13.3), montos como números\", () => { const j = pm.response.json(); pm.expect(j).to.eql({ mes: '2026-10', ventas: 2, total: 9250, pronostico: 2512.88, cartera: { clientes: 3, maximo: 10 } }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/resumen?mes=2026-10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "resumen"
+              ],
+              "query": [
+                {
+                  "key": "mes",
+                  "value": "2026-10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sin mes → mes actual de Guatemala",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Mes AAAA-MM y montos numéricos\", () => { const j = pm.response.json(); pm.expect(j.mes).to.match(/^\\d{4}-(0[1-9]|1[0-2])$/); ['ventas', 'total', 'pronostico'].forEach((k) => pm.expect(j[k]).to.be.a('number')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/resumen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "resumen"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mes inválido → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/resumen?mes=2026-13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "resumen"
+              ],
+              "query": [
+                {
+                  "key": "mes",
+                  "value": "2026-13"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/resumen?mes=2026-10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "resumen"
+              ],
+              "query": [
+                {
+                  "key": "mes",
+                  "value": "2026-10"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Clientes y cartera (A3)",
+      "description": "ESCRIBE DATOS: ejecútela solo contra la demostración o una base de pruebas restablecible.",
+      "item": [
+        {
+          "name": "Cartera → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista de su cartera (máximo 10)\", () => { const j = pm.response.json(); pm.expect(j).to.be.an('array'); pm.expect(j.length).to.be.at.most(10); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Búsqueda ?q= → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes?q=a",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "a"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Búsqueda con inyección SQL → 200 sin clientes ajenos (S3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"No aparece el cliente de B\", () => { const j = pm.response.json(); pm.expect(j).to.be.an('array'); pm.expect(j.map((c) => c.id)).to.not.include(Number(pm.collectionVariables.get('cliente_ajeno_id'))); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes?q=' OR 1=1 --",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "' OR 1=1 --"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Búsqueda de más de 100 caracteres → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes?q=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Disponibles → 200 [{ id, nombre }] (guarda disponible_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Solo id y nombre\", () => { const j = pm.response.json(); j.forEach((c) => pm.expect(Object.keys(c).sort()).to.eql(['id', 'nombre'])); });",
+                  "if (pm.response.json().length) pm.collectionVariables.set('disponible_id', pm.response.json()[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/disponibles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "disponibles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Alta de cliente → 201 (guarda cliente_id)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// NIT válido (módulo 11, R4) y teléfono de Guatemala distintos en cada ejecución.",
+                  "const cuerpo = String(1000000 + Math.floor(Math.random() * 8999999));",
+                  "let suma = 0; for (let i = 0; i < cuerpo.length; i++) suma += Number(cuerpo[i]) * (cuerpo.length + 1 - i);",
+                  "const r = (11 - (suma % 11)) % 11;",
+                  "pm.collectionVariables.set('nit_nuevo', cuerpo + (r === 10 ? 'K' : String(r)));",
+                  "pm.collectionVariables.set('telefono_nuevo', '6' + String(Math.floor(Math.random() * 1e7)).padStart(7, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"Forma de cliente §8.2\", () => { const j = pm.response.json(); pm.expect(Object.keys(j).sort()).to.eql(['correo', 'id', 'nit', 'nombre', 'telefono']); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));",
+                  "pm.collectionVariables.set('cliente_id', pm.response.json().id);",
+                  "pm.collectionVariables.set('nit_creado', pm.response.json().nit);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Postman Cosméticos {{$timestamp}}\",\n  \"nit\": \"{{nit_nuevo}}\",\n  \"telefono\": \"{{telefono_nuevo}}\",\n  \"correo\": \"compras@postman.test\",\n  \"vendedor_id\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Incluye vendedor_id, que el contrato no lista: la API lo ignora (D5) y el cliente queda en la cartera de quien tiene el token."
+          }
+        },
+        {
+          "name": "Alta con NIT repetido → 409",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('telefono_nuevo', '6' + String(Math.floor(Math.random() * 1e7)).padStart(7, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Postman duplicado\",\n  \"nit\": \"{{nit_creado}}\",\n  \"telefono\": \"{{telefono_nuevo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Alta con NIT y teléfono inválidos → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.nit', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('nit'); pm.expect(j.errores.nit).to.be.a('string'); });",
+                  "pm.test('422 con errores.telefono', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('telefono'); pm.expect(j.errores.telefono).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Postman inválido\",\n  \"nit\": \"1234\",\n  \"telefono\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Alta sin cuerpo → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalle propio → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Forma de cliente §8.2\", () => { const j = pm.response.json(); pm.expect(Object.keys(j).sort()).to.eql(['correo', 'id', 'nit', 'nombre', 'telefono']); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar teléfono → 200",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('telefono_nuevo', '6' + String(Math.floor(Math.random() * 1e7)).padStart(7, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Forma de cliente §8.2\", () => { const j = pm.response.json(); pm.expect(Object.keys(j).sort()).to.eql(['correo', 'id', 'nit', 'nombre', 'telefono']); });",
+                  "pm.test(\"Teléfono actualizado\", () => { const j = pm.response.json(); pm.expect(j.telefono).to.eql(pm.collectionVariables.get('telefono_nuevo')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telefono\": \"{{telefono_nuevo}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Editar sin campos → 400 (D16)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Editar con correo inválido → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.correo', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('correo'); pm.expect(j.errores.correo).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"sin-arroba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cliente de otro vendedor → 404 (R2, S5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_ajeno_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_ajeno_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar cliente de otro vendedor → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_ajeno_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_ajeno_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Intento ajeno\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Tomar cliente disponible → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Forma de cliente §8.2\", () => { const j = pm.response.json(); pm.expect(Object.keys(j).sort()).to.eql(['correo', 'id', 'nit', 'nombre', 'telefono']); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{disponible_id}}/tomar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{disponible_id}}",
+                "tomar"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tomar el mismo cliente (vendedor B) → 409 (D8)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{disponible_id}}/tomar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{disponible_id}}",
+                "tomar"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_b}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tomar cliente inexistente → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/999999/tomar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "999999",
+                "tomar"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Actividades (A5)",
+      "description": "ESCRIBE DATOS. Necesita {{cliente_id}} de la carpeta de clientes.",
+      "item": [
+        {
+          "name": "Crear actividad con zona horaria → 201 (guarda actividad_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"Forma §8.4 con vence_en en UTC\", () => { const j = pm.response.json(); pm.expect(j.vence_en).to.eql('2030-01-15T15:00:00.000Z'); pm.expect(j.completada).to.eql(false); pm.expect(j.vencida).to.eql(false); pm.expect(j.cliente).to.have.keys('id', 'nombre'); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));",
+                  "pm.collectionVariables.set('actividad_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_id}}/actividades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_id}}",
+                "actividades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"llamada\",\n  \"descripcion\": \"Confirmar pedido de temporada\",\n  \"vence_en\": \"2030-01-15T09:00:00-06:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Fecha sin zona horaria → 422 (R8)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.vence_en', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('vence_en'); pm.expect(j.errores.vence_en).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_id}}/actividades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_id}}",
+                "actividades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"tarea\",\n  \"descripcion\": \"Fecha ambigua\",\n  \"vence_en\": \"2026-12-01T10:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Actividad para cliente ajeno → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes/{{cliente_ajeno_id}}/actividades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes",
+                "{{cliente_ajeno_id}}",
+                "actividades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"tarea\",\n  \"descripcion\": \"Intento ajeno\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Pendientes → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Solo pendientes\", () => { const j = pm.response.json(); j.forEach((a) => pm.expect(a.completada).to.eql(false)); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actividades?estado=pendiente",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actividades"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "pendiente"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estado no admitido → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actividades?estado=cancelada",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actividades"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "cancelada"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Marcar como completada → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Completada y no vencida\", () => { const j = pm.response.json(); pm.expect(j.completada).to.eql(true); pm.expect(j.vencida).to.eql(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actividades/{{actividad_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actividades",
+                "{{actividad_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completada\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Completada con valor no booleano → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.completada', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('completada'); pm.expect(j.errores.completada).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actividades/{{actividad_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actividades",
+                "{{actividad_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completada\": \"si\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Actividad inexistente → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actividades/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actividades",
+                "999999"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completada\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Oportunidades y productos (A4, R5, D1, D10, D13, D14)",
+      "description": "ESCRIBE DATOS. Recorre alta, líneas, transiciones y cierre de una oportunidad.",
+      "item": [
+        {
+          "name": "Listado → 200 (resumen sin productos ni historial, D11)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Resumen D11\", () => { const j = pm.response.json(); j.forEach((o) => { pm.expect(o).to.not.have.property('productos'); pm.expect(o).to.not.have.property('historial'); pm.expect(o.total).to.be.a('number'); }); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filtro por etapa → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Solo prospecto\", () => { const j = pm.response.json(); j.forEach((o) => pm.expect(o.etapa).to.eql('prospecto')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades?etapa=prospecto",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades"
+              ],
+              "query": [
+                {
+                  "key": "etapa",
+                  "value": "prospecto"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Etapa inexistente en el filtro → 400 (D6)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades?etapa=cancelado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades"
+              ],
+              "query": [
+                {
+                  "key": "etapa",
+                  "value": "cancelado"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear → 201 en prospecto (guarda oportunidad_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"Detalle §8.3: total numérico e historial[].usuario como texto\", () => { const j = pm.response.json(); ['id','cliente','titulo','etapa','probabilidad','total','fecha_cierre','motivo_perdida','productos','historial'].forEach((k) => pm.expect(j).to.have.property(k)); pm.expect(j.total).to.be.a('number'); j.historial.forEach((h) => pm.expect(h.usuario).to.be.a('string')); });",
+                  "pm.test(\"Etapa prospecto\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('prospecto'); });",
+                  "pm.test(\"Nace en prospecto (10 %) con su primer historial\", () => { const j = pm.response.json(); pm.expect(j.probabilidad).to.eql(10); pm.expect(j.historial).to.have.length(1); pm.expect(j.historial[0].etapa_anterior).to.eql(null); });",
+                  "pm.test('Sin hashes ni identificadores internos (S4)', () => pm.expect(pm.response.text()).to.not.match(/password|vendedor_id|user_id|usuario_id|supervisor_id|\\$2[aby]\\$/));",
+                  "pm.collectionVariables.set('oportunidad_id', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cliente_id\": {{cliente_id}},\n  \"titulo\": \"Pedido Postman\",\n  \"etapa\": \"ganada\",\n  \"vendedor_id\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "etapa y vendedor_id no están en el contrato de alta: se ignoran (D5)."
+          }
+        },
+        {
+          "name": "Crear con cliente ajeno → 422 (D14)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.cliente_id', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('cliente_id'); pm.expect(j.errores.cliente_id).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"cliente_id\": {{cliente_ajeno_id}}, \"titulo\": \"Intento ajeno\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Detalle propio → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Detalle §8.3: total numérico e historial[].usuario como texto\", () => { const j = pm.response.json(); ['id','cliente','titulo','etapa','probabilidad','total','fecha_cierre','motivo_perdida','productos','historial'].forEach((k) => pm.expect(j).to.have.property(k)); pm.expect(j.total).to.be.a('number'); j.historial.forEach((h) => pm.expect(h.usuario).to.be.a('string')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Oportunidad de otro vendedor → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_ajena_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_ajena_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cambiar título → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Título actualizado\", () => { const j = pm.response.json(); pm.expect(j.titulo).to.eql('Pedido Postman (revisado)'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Pedido Postman (revisado)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Título vacío → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.titulo', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('titulo'); pm.expect(j.errores.titulo).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"   \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Agregar producto → 201 (guarda linea_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"Detalle §8.3: total numérico e historial[].usuario como texto\", () => { const j = pm.response.json(); ['id','cliente','titulo','etapa','probabilidad','total','fecha_cierre','motivo_perdida','productos','historial'].forEach((k) => pm.expect(j).to.have.property(k)); pm.expect(j.total).to.be.a('number'); j.historial.forEach((h) => pm.expect(h.usuario).to.be.a('string')); });",
+                  "pm.test(\"El precio sale del catálogo, nunca del cliente (D5, R6)\", () => { const j = pm.response.json(); const l = j.productos[0]; pm.expect(l.precio_unitario).to.be.above(0.01); pm.expect(l.subtotal).to.eql(Math.round(l.precio_unitario * l.cantidad * 100) / 100); });",
+                  "pm.collectionVariables.set('linea_id', pm.response.json().productos[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"producto_id\": {{producto_sin_control}}, \"cantidad\": 2, \"precio_unitario\": 0.01 }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Agregar el mismo producto → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"producto_id\": {{producto_sin_control}}, \"cantidad\": 1 }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Producto inexistente → 422 (D14)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.producto_id', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('producto_id'); pm.expect(j.errores.producto_id).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"producto_id\": 999999,\n  \"cantidad\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cambiar cantidad de la línea → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Cantidad 3\", () => { const j = pm.response.json(); pm.expect(j.productos[0].cantidad).to.eql(3); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos/{{linea_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos",
+                "{{linea_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cantidad 0 → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.cantidad', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('cantidad'); pm.expect(j.errores.cantidad).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos/{{linea_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos",
+                "{{linea_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cantidad\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Salto de etapa prospecto → propuesta → 422 (D1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.etapa', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('etapa'); pm.expect(j.errores.etapa).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/etapa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "etapa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa\": \"propuesta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Repetir la etapa actual → 409 (D13)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/etapa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "etapa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa\": \"prospecto\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Avanzar a calificado → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Etapa calificado\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('calificado'); });",
+                  "pm.test(\"25 % y un evento más\", () => { const j = pm.response.json(); pm.expect(j.probabilidad).to.eql(25); pm.expect(j.historial).to.have.length(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/etapa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "etapa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa\": \"calificado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Quitar la línea → 204 sin cuerpo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin cuerpo', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos/{{linea_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos",
+                "{{linea_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Quitar la misma línea otra vez → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos/{{linea_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos",
+                "{{linea_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Perder sin motivo → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 422', () => pm.response.to.have.status(422));",
+                  "pm.test('422 con errores.motivo_perdida', () => { const j = pm.response.json(); pm.expect(j).to.have.property('errores'); pm.expect(j.errores).to.have.property('motivo_perdida'); pm.expect(j.errores.motivo_perdida).to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/etapa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "etapa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa\": \"perdida\",\n  \"motivo_perdida\": \"  \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Perder con motivo → 200 cerrada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test(\"Etapa perdida\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('perdida'); });",
+                  "pm.test(\"Cerrada con fecha ISO UTC y motivo\", () => { const j = pm.response.json(); pm.expect(j.probabilidad).to.eql(0); pm.expect(j.fecha_cierre).to.match(/Z$/); pm.expect(j.motivo_perdida).to.eql('El cliente pospuso la compra'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/etapa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "etapa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"etapa\": \"perdida\",\n  \"motivo_perdida\": \"El cliente pospuso la compra\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Modificar título de una oportunidad cerrada → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"No debe cambiar\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Agregar producto a una cerrada → 409 (aunque el cuerpo sea inválido, D10)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/oportunidades/{{oportunidad_id}}/productos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "oportunidades",
+                "{{oportunidad_id}}",
+                "productos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"producto_id\": \"x\",\n  \"cantidad\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Regla propia de stock (RP-01 a RP-04, B6-13)",
+      "description": "ESCRIBE DATOS Y DESCUENTA STOCK: solo contra la demostración o una base de pruebas restablecible. Necesita productos con stock controlado (en la semilla oficial todos tienen stock NULL: los prepara la Parte A con SectorSeeder o el panel). Numeración de docs/especificacion.md §10.4; en docs/specs/B4-oportunidades.md los mismos casos se llaman RP-1 a RP-3.",
+      "item": [
+        {
+          "name": "RP-01 Stock suficiente → ganada y descuento",
+          "description": "Una línea de 3 unidades del producto con más stock: al ganar, el stock baja en 3.",
+          "item": [
+            {
+              "name": "RP-01 · Stock antes",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_con_stock')));",
+                      "pm.test('El producto {{producto_con_stock}} existe en el catálogo', () => pm.expect(p).to.be.an('object'));",
+                      "pm.collectionVariables.set('stock_rp01', p ? JSON.stringify(p.stock) : 'null');",
+                      "pm.test('Stock controlado de al menos 3', () => pm.expect(JSON.parse(pm.collectionVariables.get('stock_rp01'))).to.be.at.least(3));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RP-01 · Crear oportunidad",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('oportunidad_rp01', pm.response.json().id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"cliente_id\": {{cliente_id}}, \"titulo\": \"RP-01 Postman\" }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-01 · Agregar línea 1",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp01}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp01}}",
+                    "productos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"producto_id\": {{producto_con_stock}}, \"cantidad\": 3 }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-01 · Avanzar a calificado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa calificado\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('calificado'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp01}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp01}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"calificado\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-01 · Avanzar a propuesta",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa propuesta\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('propuesta'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp01}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp01}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"propuesta\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-01 · Avanzar a negociacion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa negociacion\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('negociacion'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp01}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp01}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"negociacion\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-01 · Ganar → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa ganada\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('ganada'); });",
+                      "pm.test(\"Ganada al 100 % con fecha de cierre\", () => { const j = pm.response.json(); pm.expect(j.probabilidad).to.eql(100); pm.expect(j.fecha_cierre).to.match(/Z$/); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp01}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp01}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"ganada\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-01 · Stock después = antes − 3",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_con_stock')));",
+                      "const antes = JSON.parse(pm.collectionVariables.get('stock_rp01'));",
+                      "pm.test(\"Se descontaron exactamente 3 unidades\", () => pm.expect(p.stock).to.eql(antes - 3));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "RP-02 Stock insuficiente → 409 sin cambios",
+          "description": "Una línea que pide una unidad más de las que hay: 409, la oportunidad sigue en negociación y el stock no cambia.",
+          "item": [
+            {
+              "name": "RP-02 · Stock antes",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_stock_bajo')));",
+                      "pm.test('El producto {{producto_stock_bajo}} existe en el catálogo', () => pm.expect(p).to.be.an('object'));",
+                      "pm.collectionVariables.set('stock_rp02', p ? JSON.stringify(p.stock) : 'null');",
+                      "pm.collectionVariables.set('cantidad_rp02', JSON.parse(pm.collectionVariables.get('stock_rp02')) + 1);",
+                      "pm.test('La cantidad insuficiente cabe en una línea (máximo 999)', () => pm.expect(JSON.parse(pm.collectionVariables.get('stock_rp02')) + 1).to.be.at.most(999));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Crear oportunidad",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('oportunidad_rp02', pm.response.json().id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"cliente_id\": {{cliente_id}}, \"titulo\": \"RP-02 Postman\" }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Agregar línea 1",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp02}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp02}}",
+                    "productos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"producto_id\": {{producto_stock_bajo}}, \"cantidad\": {{cantidad_rp02}} }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Avanzar a calificado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa calificado\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('calificado'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp02}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp02}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"calificado\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Avanzar a propuesta",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa propuesta\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('propuesta'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp02}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp02}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"propuesta\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Avanzar a negociacion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa negociacion\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('negociacion'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp02}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp02}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"negociacion\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Ganar → 409",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                      "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp02}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp02}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"ganada\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Sigue en negociación, sin historial nuevo",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa negociacion\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('negociacion'); });",
+                      "pm.test(\"Historial intacto (creación + 3 avances) y sin fecha de cierre\", () => { const j = pm.response.json(); pm.expect(j.historial).to.have.length(4); pm.expect(j.fecha_cierre).to.eql(null); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp02}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp02}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RP-02 · Stock sin cambios",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_stock_bajo')));",
+                      "const antes = JSON.parse(pm.collectionVariables.get('stock_rp02'));",
+                      "pm.test(\"El stock no cambió\", () => pm.expect(p.stock).to.eql(antes));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "RP-03 Varios productos, uno insuficiente → nada se descuenta",
+          "description": "Dos líneas: una con stock de sobra y otra insuficiente. 409 y ninguno de los dos stocks cambia (transacción completa).",
+          "item": [
+            {
+              "name": "RP-03 · Stock antes (producto con stock)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_con_stock')));",
+                      "pm.test('El producto {{producto_con_stock}} existe en el catálogo', () => pm.expect(p).to.be.an('object'));",
+                      "pm.collectionVariables.set('stock_rp03_a', p ? JSON.stringify(p.stock) : 'null');"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Stock antes (producto escaso)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_stock_bajo')));",
+                      "pm.test('El producto {{producto_stock_bajo}} existe en el catálogo', () => pm.expect(p).to.be.an('object'));",
+                      "pm.collectionVariables.set('stock_rp03_b', p ? JSON.stringify(p.stock) : 'null');",
+                      "pm.collectionVariables.set('cantidad_rp03', JSON.parse(pm.collectionVariables.get('stock_rp03_b')) + 1);",
+                      "pm.test('La cantidad insuficiente cabe en una línea (máximo 999)', () => pm.expect(JSON.parse(pm.collectionVariables.get('stock_rp03_b')) + 1).to.be.at.most(999));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Crear oportunidad",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('oportunidad_rp03', pm.response.json().id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"cliente_id\": {{cliente_id}}, \"titulo\": \"RP-03 Postman\" }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Agregar línea 1",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp03}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp03}}",
+                    "productos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"producto_id\": {{producto_con_stock}}, \"cantidad\": 1 }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Agregar línea 2",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp03}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp03}}",
+                    "productos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"producto_id\": {{producto_stock_bajo}}, \"cantidad\": {{cantidad_rp03}} }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Avanzar a calificado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa calificado\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('calificado'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp03}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp03}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"calificado\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Avanzar a propuesta",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa propuesta\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('propuesta'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp03}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp03}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"propuesta\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Avanzar a negociacion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa negociacion\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('negociacion'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp03}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp03}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"negociacion\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Ganar → 409",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                      "pm.test('Cuerpo { error: texto } y nada más', () => { const j = pm.response.json(); pm.expect(Object.keys(j)).to.eql(['error']); pm.expect(j.error).to.be.a('string').and.not.empty; });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp03}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp03}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"ganada\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Etapa conservada",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa negociacion\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('negociacion'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp03}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp03}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Ningún stock cambió (producto con stock)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_con_stock')));",
+                      "const antes = JSON.parse(pm.collectionVariables.get('stock_rp03_a'));",
+                      "pm.test(\"El producto con stock suficiente tampoco se descontó\", () => pm.expect(p.stock).to.eql(antes));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RP-03 · Ningún stock cambió (producto escaso)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_stock_bajo')));",
+                      "const antes = JSON.parse(pm.collectionVariables.get('stock_rp03_b'));",
+                      "pm.test(\"El producto escaso no cambió\", () => pm.expect(p.stock).to.eql(antes));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "RP-04 Stock NULL → se gana y sigue NULL",
+          "description": "Producto sin control de inventario: no bloquea la venta ni recibe descuento.",
+          "item": [
+            {
+              "name": "RP-04 · Crear oportunidad",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set('oportunidad_rp04', pm.response.json().id);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"cliente_id\": {{cliente_id}}, \"titulo\": \"RP-04 Postman\" }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-04 · Agregar línea 1",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 201', () => pm.response.to.have.status(201));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp04}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp04}}",
+                    "productos"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"producto_id\": {{producto_sin_control}}, \"cantidad\": 5 }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-04 · Avanzar a calificado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa calificado\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('calificado'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp04}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp04}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"calificado\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-04 · Avanzar a propuesta",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa propuesta\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('propuesta'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp04}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp04}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"propuesta\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-04 · Avanzar a negociacion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa negociacion\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('negociacion'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp04}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp04}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"negociacion\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-04 · Ganar → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "pm.test(\"Etapa ganada\", () => { const j = pm.response.json(); pm.expect(j.etapa).to.eql('ganada'); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/oportunidades/{{oportunidad_rp04}}/etapa",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "oportunidades",
+                    "{{oportunidad_rp04}}",
+                    "etapa"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"etapa\": \"ganada\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "RP-04 · El stock sigue NULL",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                      "const p = pm.response.json().find((x) => String(x.id) === String(pm.collectionVariables.get('producto_sin_control')));",
+                      "pm.test('stock sigue siendo null', () => pm.expect(p.stock).to.eql(null));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/productos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "productos"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string",
+      "description": "URL base del contrato. Para la demostración use http://127.0.0.1:3000/api."
+    },
+    {
+      "key": "correo_vendedora",
+      "value": "valeria@crm.test",
+      "type": "string",
+      "description": "Vendedora A (VerificacionSeeder: Valeria López)."
+    },
+    {
+      "key": "correo_vendedor_b",
+      "value": "",
+      "type": "string",
+      "description": "Vendedor B activo, distinto de A (completar con la semilla oficial)."
+    },
+    {
+      "key": "correo_admin",
+      "value": "",
+      "type": "string",
+      "description": "Administradora de la semilla (completar)."
+    },
+    {
+      "key": "correo_supervisor",
+      "value": "",
+      "type": "string",
+      "description": "Supervisor de la semilla (completar)."
+    },
+    {
+      "key": "correo_inactivo",
+      "value": "",
+      "type": "string",
+      "description": "Vendedor desactivado de la semilla (completar)."
+    },
+    {
+      "key": "clave",
+      "value": "Ventas2026",
+      "type": "string",
+      "description": "Contraseña pública de VerificacionSeeder (enunciado §11; S2 permite publicarla aquí)."
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Lo guarda «Login vendedora A»."
+    },
+    {
+      "key": "token_b",
+      "value": "",
+      "type": "string",
+      "description": "Lo guarda «Login vendedor B»."
+    },
+    {
+      "key": "cliente_id",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "nit_creado",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "disponible_id",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "cliente_ajeno_id",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "oportunidad_id",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "oportunidad_ajena_id",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "linea_id",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "actividad_id",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "producto_con_stock",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "producto_stock_bajo",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "producto_sin_control",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "nit_nuevo",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "telefono_nuevo",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "oportunidad_rp01",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "oportunidad_rp02",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "oportunidad_rp03",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "oportunidad_rp04",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "stock_rp01",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "stock_rp02",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "stock_rp03_a",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "stock_rp03_b",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "cantidad_rp02",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    },
+    {
+      "key": "cantidad_rp03",
+      "value": "",
+      "type": "string",
+      "description": "La rellenan las propias peticiones."
+    }
+  ]
+}
