@@ -29,8 +29,24 @@ const estadoInicial = () => ({
   ruta: '#/login',
   aviso: null, // { tipo: 'warning' | 'danger' | 'info', texto }
   login: { cargando: false, correo: '', errores: {}, mensaje: null },
-  cartera: { cargando: false, clientes: [], error: null, cargada: false },
+  cartera: carteraInicial(),
 });
+
+/**
+ * Estado de la cartera (B2-15, B3).
+ * - clientes: resultado de la última consulta (con o sin búsqueda).
+ * - total: tamaño de la cartera completa, para el indicador «X de 10» aunque haya búsqueda.
+ * - busqueda: texto aplicado en el servidor (solo cambia al enviar el formulario).
+ * - formulario: null o { modo: 'crear' | 'editar', id, valores, original, errores, mensaje, enviando }.
+ * - disponibles: clientes sin vendedor ({ id, nombre }) y el estado de la acción «tomar».
+ */
+export function carteraInicial() {
+  return {
+    cargando: false, clientes: [], total: 0, busqueda: '', error: null, cargada: false,
+    formulario: null,
+    disponibles: { visible: false, cargando: false, lista: [], error: null, tomando: null },
+  };
+}
 
 let estado = estadoInicial();
 const oyentes = new Set();
@@ -67,7 +83,7 @@ export function cerrarSesion() {
   } catch {
     // sin almacenamiento
   }
-  actualizar({ sesion: null, cartera: estadoInicial().cartera, login: estadoInicial().login });
+  actualizar({ sesion: null, cartera: carteraInicial(), login: estadoInicial().login });
 }
 
 /** Solo para las pruebas: vuelve al estado inicial leyendo de nuevo el almacenamiento. */

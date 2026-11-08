@@ -27,6 +27,7 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-07 | 2026-11-08 | B | Hooks · `vigilar-bash.mjs` | Corregido | `a35f8fa` |
 | IA-08 | 2026-11-08 | B | Hooks · `revisar-cambio.mjs` | Corregido | Pendiente (sin commit) |
 | IA-09 | 2026-11-08 | B | B2 · `api/src/rutas/auth.js` y SPA | Corregido | Pendiente (sin commit) |
+| IA-10 | 2026-11-08 | B | B3 · plan y `api/test/ayuda/bd-simulada.js` | Corregido | Pendiente (sin commit) |
 
 ---
 
@@ -309,5 +310,26 @@ Prueba de regresión `RC8` en `.claude/hooks/pruebas/hooks.test.mjs`. Las prueba
 - **Corrección:** una app envolvente (`express().use(marcado).use(app)`) añade la cabecera `X-CRM-Modo` sin tocar la app real. La prueba `api/test/demo.test.js` comprueba el login, la cartera de 3 clientes y la cabecera.
 
 **Verificación.** `npm test` en `api/` da 106 pruebas, 100 superadas, 0 fallidas, 3 omitidas y 3 `todo`; las omitidas y las `todo` dependen de I1. Con las 3 pruebas de `demo.test.js` añadidas, da 109 pruebas, 103 superadas y 0 fallidas. `npm run test:bd` con MySQL da 102 superadas, 0 fallidas, 1 omitida (la de integración, por I1) y 3 `todo`. `node --test frontend/test/*.test.js` da 26 de 26, y las pruebas de los hooks, 34 de 34.
+
+**Commit.** Pendiente (sin commit).
+
+---
+
+## IA-10 — Errores del agente en la fase B3 (clientes y cartera)
+
+**1. Límite de la búsqueda `q` distinto del acordado.**
+- **Propuesta:** en el plan de implementación de B3, el agente fijó un máximo de 150 caracteres para `q` en `GET /api/clientes`, tomando como referencia la longitud de `clientes.nombre` (VARCHAR(150)).
+- **Por qué era incorrecto:** la usuaria ya había decidido un máximo de 100 caracteres. El agente no lo tuvo en cuenta y propuso un valor propio.
+- **Detección:** la usuaria lo señaló al revisar el plan, antes de que se escribiera código.
+- **Corrección:** el plan se actualizó a 100 y la implementación usa `LONGITUD_MAXIMA_BUSQUEDA = 100` (`api/src/rutas/clientes.js`). Prueba en `clientes.test.js` (B3-03): `q` de 101 caracteres → 400; de 100 → 200.
+
+**2. La base simulada reutilizaba un id existente al registrar un cliente.**
+- **Propuesta:** en `api/test/ayuda/bd-simulada.js`, el autoincremento de `clientes` se calculaba una sola vez al crear la base (`max(id) + 1`).
+- **Por qué era incorrecto:** la demostración (`api/demo/servidor-demo.js`) y algunas pruebas añaden filas directamente después de crear la base. La demo añade el cliente 14, y la primera alta recibía también el id 14. `POST /api/clientes` respondía 201 con los datos del cliente existente («Distribuidora Demo Cosméticos») en lugar del nuevo, y había dos filas con el mismo id. Las pruebas de B3 no lo detectaban porque ninguna añadía filas con ids cercanos antes de un alta.
+- **Detección:** verificación en el navegador integrado contra la API de demostración: una petición `POST /api/clientes` con `{ nombre: 'Verif', … }` devolvió `id: 14` y el nombre del cliente de la demo.
+- **Corrección:** al insertar, el autoincremento se ajusta a `max(siguienteId, id más alto + 1)`, como en InnoDB. Prueba nueva en `clientes.test.js` (B3-09): tras añadir a mano una fila con id 500, el alta devuelve el cliente nuevo con un id mayor y todos los ids son únicos. Comprobado de nuevo en la demo: el alta devuelve `id: 15` con sus propios datos y `GET /api/clientes/15` coincide.
+- **Alcance:** el error estaba solo en la base simulada de pruebas y de la demo; el código de la API no cambió. Con MySQL real, el autoincremento lo gestiona InnoDB.
+
+**Verificación.** `npm test` en `api/` da 179 pruebas, 161 superadas, 0 fallidas, 8 omitidas y 10 `todo`; las omitidas y las `todo` dependen de I1. `node --test frontend/test/*.test.js` da 47 de 47, y las pruebas de los hooks, 34 de 34.
 
 **Commit.** Pendiente (sin commit).

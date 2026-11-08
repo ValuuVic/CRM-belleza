@@ -149,3 +149,148 @@ describe('api.js', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// B3 — acciones de cartera (acciones-cartera.js) con fetch simulado por ruta
+// ---------------------------------------------------------------------------
+const acciones = await import('../js/acciones-cartera.js');
+
+describe('B3 acciones de cartera', () => {
+  let rutas;
+  const responder = (metodo, ruta, status, cuerpo) => { rutas.set(`${metodo} ${ruta}`, { status, cuerpo }); };
+  beforeEach(() => {
+    rutas = new Map();
+    globalThis.fetch = async (url, opciones = {}) => {
+      peticiones.push({ url, opciones });
+      const clave = `${opciones.method ?? 'GET'} ${url.replace(api.URL_API, '')}`;
+      const r = rutas.get(clave);
+      if (!r) throw new TypeError(`sin respuesta simulada para ${clave}`);
+      return { ok: r.status >= 200 && r.status < 300, status: r.status, text: async () => (r.cuerpo === undefined ? '' : JSON.stringify(r.cuerpo)) };
+    };
+    estado.guardarSesion(SESION);
+  });
+  const c = () => estado.obtenerEstado().cartera;
+  const CLIENTES = [{ id: 1, nombre: 'Uno', nit: 'CF', telefono: '22223333', correo: null }, { id: 2, nombre: 'Dos', nit: '4521817K', telefono: '33334444', correo: 'd@x.test' }];
+
+  test('cargarCartera guarda clientes y total; con búsqueda pide también el listado completo', async () => {
+    responder('GET', '/clientes', 200, CLIENTES);
+    responder('GET', '/clientes?q=dos', 200, [CLIENTES[1]]);
+    await acciones.cargarCartera();
+    assert.equal(c().total, 2);
+    await acciones.buscar('  dos ');
+    assert.deepEqual(c().clientes, [CLIENTES[1]]);
+    assert.equal(c().total, 2);
+    assert.equal(c().busqueda, 'dos');
+    await acciones.limpiarBusqueda();
+    assert.equal(c().busqueda, '');
+    assert.equal(c().clientes.length, 2);
+  });
+
+  test('la búsqueda codifica q en la URL', async () => {
+    responder('GET', '/clientes?q=%27+OR+1%3D1+--', 200, []);
+    responder('GET', '/clientes', 200, CLIENTES);
+    await acciones.buscar("' OR 1=1 --");
+    assert.ok(peticiones.some((p) => p.url.endsWith('/clientes?q=%27+OR+1%3D1+--')));
+    assert.deepEqual(c().clientes, []);
+    assert.equal(c().total, 2);
+  });
+
+  test('B3-14: un 422 conserva lo escrito y guarda los errores por campo', async () => {
+    acciones.abrirNuevo();
+    responder('POST', '/clientes', 422, { errores: { nit: 'El NIT no es válido' } });
+    peticiones.length = 0;
+    await acciones.enviarFormulario({ nombre: 'Bella', nit: '4521817-1', telefono: '23456789', correo: '' });
+    assert.deepEqual(c().formulario.valores, { nombre: 'Bella', nit: '4521817-1', telefono: '23456789', correo: '' });
+    assert.deepEqual(c().formulario.errores, { nit: 'El NIT no es válido' });
+    assert.equal(c().formulario.enviando, false);
+    assert.equal(peticiones.length, 1);
+    assert.deepEqual(JSON.parse(peticiones[0].opciones.body), { nombre: 'Bella', nit: '4521817-1', telefono: '23456789' });
+  });
+
+  test('un 409 en el alta se muestra como mensaje y conserva los valores', async () => {
+    acciones.abrirNuevo();
+    responder('POST', '/clientes', 409, { error: 'Su cartera ya tiene el máximo de 10 clientes' });
+    await acciones.enviarFormulario({ nombre: 'X', nit: 'CF', telefono: '23456789', correo: 'x@y.test' });
+    assert.deepEqual(c().formulario.mensaje, { tipo: 'danger', texto: 'Su cartera ya tiene el máximo de 10 clientes' });
+    assert.equal(c().formulario.valores.correo, 'x@y.test');
+  });
+
+  test('alta correcta: cierra el formulario, avisa y actualiza la lista', async () => {
+    acciones.abrirNuevo();
+    responder('POST', '/clientes', 201, { id: 3, nombre: 'Tres', nit: 'CF', telefono: '44445555', correo: null });
+    responder('GET', '/clientes', 200, [...CLIENTES, { id: 3, nombre: 'Tres', nit: 'CF', telefono: '44445555', correo: null }]);
+    await acciones.enviarFormulario({ nombre: 'Tres', nit: 'cf', telefono: '4444-5555', correo: '' });
+    assert.equal(c().formulario, null);
+    assert.equal(c().total, 3);
+    assert.equal(estado.obtenerEstado().aviso.tipo, 'success');
+  });
+
+  test('edición: carga el cliente con GET /:id y envía solo los campos cambiados (B3-13)', async () => {
+    responder('GET', '/clientes/2', 200, CLIENTES[1]);
+    await acciones.abrirEdicion(2);
+    assert.deepEqual(c().formulario.valores, { nombre: 'Dos', nit: '4521817K', telefono: '33334444', correo: 'd@x.test' });
+    responder('PATCH', '/clientes/2', 200, { ...CLIENTES[1], telefono: '55556666', correo: null });
+    responder('GET', '/clientes', 200, CLIENTES);
+    peticiones.length = 0;
+    await acciones.enviarFormulario({ nombre: 'Dos', nit: '4521817K', telefono: '5555-6666', correo: '' });
+    const patch = peticiones.find((p) => p.opciones.method === 'PATCH');
+    assert.deepEqual(JSON.parse(patch.opciones.body), { telefono: '5555-6666', correo: null });
+    assert.equal(c().formulario, null);
+  });
+
+  test('edición sin cambios: no envía la petición', async () => {
+    responder('GET', '/clientes/1', 200, CLIENTES[0]);
+    await acciones.abrirEdicion(1);
+    peticiones.length = 0;
+    await acciones.enviarFormulario({ nombre: 'Uno', nit: 'CF', telefono: '22223333', correo: '' });
+    assert.equal(peticiones.length, 0);
+    assert.equal(c().formulario.mensaje.tipo, 'info');
+  });
+
+  test('editar un cliente que ya no es propio (404) cierra el formulario y avisa', async () => {
+    responder('GET', '/clientes/9', 404, { error: 'Cliente no encontrado' });
+    responder('GET', '/clientes', 200, CLIENTES);
+    await acciones.abrirEdicion(9);
+    assert.equal(c().formulario, null);
+    assert.deepEqual(estado.obtenerEstado().aviso, { tipo: 'warning', texto: 'Cliente no encontrado' });
+  });
+
+  test('tomar: éxito actualiza cartera y disponibles; 409 muestra el mensaje y recarga las listas', async () => {
+    responder('GET', '/clientes', 200, CLIENTES);
+    await acciones.cargarCartera();
+    responder('GET', '/clientes/disponibles', 200, [{ id: 7, nombre: 'Libre' }, { id: 8, nombre: 'Otro' }]);
+    await acciones.verDisponibles();
+    assert.equal(c().disponibles.lista.length, 2);
+
+    responder('POST', '/clientes/7/tomar', 200, { id: 7, nombre: 'Libre', nit: 'CF', telefono: '77778888', correo: null });
+    responder('GET', '/clientes', 200, [...CLIENTES, { id: 7, nombre: 'Libre', nit: 'CF', telefono: '77778888', correo: null }]);
+    responder('GET', '/clientes/disponibles', 200, [{ id: 8, nombre: 'Otro' }]);
+    await acciones.tomar(7);
+    assert.equal(c().total, 3);
+    assert.deepEqual(c().disponibles.lista, [{ id: 8, nombre: 'Otro' }]);
+    assert.match(estado.obtenerEstado().aviso.texto, /Libre/);
+
+    responder('POST', '/clientes/8/tomar', 409, { error: 'El cliente ya no está disponible' });
+    responder('GET', '/clientes/disponibles', 200, []);
+    await acciones.tomar(8);
+    assert.equal(c().disponibles.error, 'El cliente ya no está disponible');
+    assert.deepEqual(c().disponibles.lista, []);
+    assert.equal(c().disponibles.tomando, null);
+  });
+
+  test('un 401 durante una acción cierra la sesión (B2-14) y reinicia la cartera', async () => {
+    acciones.abrirNuevo();
+    responder('POST', '/clientes', 401, { error: 'Autenticación requerida o sesión no válida' });
+    await acciones.enviarFormulario({ nombre: 'X', nit: 'CF', telefono: '23456789', correo: '' });
+    assert.equal(estado.obtenerEstado().sesion, null);
+    assert.equal(c().formulario, null);
+    assert.equal(globalThis.location.hash, '#/login');
+  });
+
+  test('sin conexión: la cartera muestra el mensaje de red', async () => {
+    rutas.clear(); // el fetch simulado lanza TypeError
+    await acciones.cargarCartera();
+    assert.equal(c().error, api.MENSAJE_SIN_CONEXION);
+    assert.equal(c().cargando, false);
+  });
+});
