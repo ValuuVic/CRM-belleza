@@ -1,5 +1,4 @@
 # Especificación del sistema — CRM Belleza
-
 ## 1. Descripción general
 
 ### 1.1 Propósito
