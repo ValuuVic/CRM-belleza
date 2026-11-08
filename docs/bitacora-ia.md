@@ -18,11 +18,11 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 
 | ID | Fecha | Parte | Área | Estado | Commit |
 |----|-------|-------|------|--------|--------|
-| IA-01 | 2026-11-07 | B | Hooks · `vigilar-bash.mjs` | Corregido | Pendiente (sin commit) |
-| IA-02 | 2026-11-07 | B | Hooks · `proteger-archivos.mjs` / `comun.mjs` | Corregido | Pendiente (sin commit) |
-| IA-03 | 2026-11-07 | B | Hooks · `revisar-cambio.mjs` / `pruebas-al-terminar.mjs` | Corregido | Pendiente (sin commit) |
-| IA-04 | 2026-11-07 | B | Hooks · `pruebas-al-terminar.mjs` | Corregido | Pendiente (sin commit) |
-| IA-05 | 2026-11-07 | B | Pruebas de los hooks | Corregido | Pendiente (sin commit) |
+| IA-01 | 2026-11-07 | B | Hooks · `vigilar-bash.mjs` | Corregido | `2312f37` |
+| IA-02 | 2026-11-07 | B | Hooks · `proteger-archivos.mjs` / `comun.mjs` | Corregido | `2312f37` |
+| IA-03 | 2026-11-07 | B | Hooks · `revisar-cambio.mjs` / `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
+| IA-04 | 2026-11-07 | B | Hooks · `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
+| IA-05 | 2026-11-07 | B | Pruebas de los hooks | Corregido | `2312f37` |
 
 ---
 
@@ -63,7 +63,7 @@ Se añadió la prueba `VB3b` con 49 casos: 19 permitidos (entre ellos `git merge
 Resultado: `node --test` con 29 pruebas, 29 superadas y 0 fallidas.
 Comprobación directa: `git merge-base HEAD main` → permitido; `git merge main` → confirmación; `git push origin b/base-api` → confirmación; `git push --force` → bloqueo; `echo DROP TABLE x` → bloqueo; `npm install knex` → bloqueo.
 
-**Commit.** Pendiente: todavía no se ha hecho commit, por indicación de la usuaria.
+**Commit.** `2312f37` (configurar hooks y pruebas de claude code).
 
 ---
 
@@ -83,7 +83,7 @@ Se crearon en `comun.mjs` las listas `ARCHIVOS_PARTE_A` (rutas exactas) y `ARCHI
 
 **Verificación.** Pruebas `PA4`, `PA4b`, `PA8` y `VB5`, todas superadas.
 
-**Commit.** Pendiente.
+**Commit.** `2312f37` (configurar hooks y pruebas de claude code).
 
 ---
 
@@ -103,7 +103,7 @@ Se añadió `revisarSintaxisJs()` en `comun.mjs`, que comprueba `.js` y `.mjs` c
 
 **Verificación.** Pruebas `RC2` y `PT3`, superadas.
 
-**Commit.** Pendiente.
+**Commit.** `2312f37` (configurar hooks y pruebas de claude code).
 
 ---
 
@@ -123,7 +123,7 @@ La prueba automatizada `PT2` falló, mientras que la ejecución manual del hook 
 
 **Verificación.** Prueba `PT2`, superada.
 
-**Commit.** Pendiente.
+**Commit.** `2312f37` (configurar hooks y pruebas de claude code).
 
 ---
 
@@ -154,4 +154,4 @@ Se añadió `PA5b`: en el repositorio real, con `spec-v1` y `CRM_PARTE=B`, escri
 **Verificación.**
 Resultado final: `node --test` con 30 pruebas, 30 superadas y 0 fallidas.
 
-**Commit.** Pendiente.
+**Commit.** `2312f37` (configurar hooks y pruebas de claude code).
