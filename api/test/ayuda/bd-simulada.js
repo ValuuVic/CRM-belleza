@@ -15,6 +15,7 @@
 // Los datos imitan la forma de las tablas de docs/especificacion.md §4 (users con rol y activo,
 // clientes con vendedor_id). NO son la semilla oficial: VerificacionSeeder es de la Parte A (I1).
 import bcrypt from 'bcryptjs';
+import { crearConsultasOportunidades } from './consultas-oportunidades.js';
 
 export const CLAVE_PRUEBA = 'Clave.Prueba-2026';
 // Coste bajo para que las pruebas sean rápidas; prefijo $2y$ como en los hashes de Laravel.
@@ -114,11 +115,36 @@ export function crearBdSimulada() {
   }
 
   function actualizarCliente(tx, cliente, cambios) {
-    const anterior = { ...cliente };
     comprobarUnicos({ ...cliente, ...cambios }, cliente.id);
-    Object.assign(cliente, cambios);
-    tx?.deshacer.push(() => Object.assign(cliente, anterior));
+    actualizarFila(tx, cliente, cambios);
   }
+
+  // Escrituras genéricas para las demás tablas (B4). Cada una registra cómo deshacerse.
+  const siguientes = new Map();
+  function insertarFila(tx, tabla, fila) {
+    const siguiente = Math.max(siguientes.get(tabla) ?? 1, ...tabla.map((f) => f.id + 1));
+    const nueva = { id: siguiente, ...fila };
+    siguientes.set(tabla, siguiente + 1);
+    tabla.push(nueva);
+    tx?.deshacer.push(() => { const i = tabla.indexOf(nueva); if (i >= 0) tabla.splice(i, 1); });
+    return nueva;
+  }
+  function actualizarFila(tx, fila, cambios) {
+    const anterior = { ...fila };
+    Object.assign(fila, cambios);
+    tx?.deshacer.push(() => { for (const k of Object.keys(fila)) delete fila[k]; Object.assign(fila, anterior); });
+  }
+  function eliminarFila(tx, tabla, fila) {
+    const i = tabla.indexOf(fila);
+    if (i < 0) return;
+    tabla.splice(i, 1);
+    tx?.deshacer.push(() => tabla.splice(Math.min(i, tabla.length), 0, fila));
+  }
+
+  // Tablas y consultas de B4 (oportunidades, productos, líneas e historial).
+  const b4 = crearConsultasOportunidades({
+    users, clientes, bloquear, insertarFila, actualizarFila, eliminarFila,
+  });
 
   // ---------- Motor de consultas ----------
   async function ejecutar(sql, params = [], tx = null) {
@@ -127,6 +153,10 @@ export function crearBdSimulada() {
     ganchos.antes?.(sql, params); // permite simular cambios de otro proceso entre consultas
     if (fallos.patron?.test(sql)) throw fallos.error ?? new Error('Fallo simulado');
     const forUpdate = /\bFOR UPDATE\b/i.test(sql);
+
+    // B4: consultas exactas de servicios/oportunidades.js y rutas de oportunidades y productos.
+    const resultadoB4 = await b4.ejecutar(sql, params, tx);
+    if (resultadoB4 !== undefined) return resultadoB4;
 
     // users
     if (/FROM users WHERE email = \?/i.test(sql)) {
@@ -236,7 +266,7 @@ export function crearBdSimulada() {
     async getConnection() { await ceder(); return crearConexion(); },
   };
 
-  return { pool, users, clientes, llamadas, estadisticas, fallos, ganchos, bloqueos };
+  return { pool, users, clientes, ...b4.tablas, llamadas, estadisticas, fallos, ganchos, bloqueos };
 }
 
 /** Levanta una app en un puerto libre de 127.0.0.1. */

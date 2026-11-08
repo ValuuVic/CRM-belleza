@@ -253,6 +253,26 @@ describe('B3-05 protección de clientes ajenos', () => {
     assert.deepEqual(e.bd.clientes, antes);
   });
 
+  test('PATCH de un cliente ajeno con datos inválidos → 404 (no 422): la propiedad va antes que los campos (D10)', async () => {
+    const antes = copia(e.bd);
+    for (const cuerpo of [{ nit: '4521817-1' }, { telefono: '123' }, { nombre: '' }]) {
+      const r = await e.llamar(4, 'PATCH', '/12', { cuerpo });
+      assert.equal(r.status, 404, JSON.stringify(cuerpo));
+    }
+    assert.equal((await e.llamar(4, 'PATCH', '/999', { cuerpo: { nit: 'mal' } })).status, 404);
+    assert.deepEqual(e.bd.clientes, antes);
+  });
+
+  test('PATCH con la cuenta desactivada a mitad de la petición → 401 sin cambios (D17)', async () => {
+    const antes = copia(e.bd);
+    e.bd.ganchos.antes = (sql) => { if (/FROM users WHERE id = \?.*FOR UPDATE/.test(sql)) e.bd.users.find((u) => u.id === 4).activo = 0; };
+    const r = await e.llamar(4, 'PATCH', '/10', { cuerpo: { nombre: 'No debe guardarse' } });
+    e.bd.ganchos.antes = null;
+    e.bd.users.find((u) => u.id === 4).activo = 1;
+    assert.equal(r.status, 401);
+    assert.deepEqual(e.bd.clientes, antes);
+  });
+
   test('el detalle propio responde 200 con el formato del contrato', async () => {
     const r = await e.llamar(4, 'GET', '/10');
     assert.equal(r.status, 200);
@@ -299,6 +319,10 @@ describe('B3-07 validaciones al registrar', () => {
     assert.deepEqual(Object.keys(r.json.errores).sort(), ['correo', 'nit', 'nombre', 'telefono']);
     const t = await e.llamar(4, 'POST', '', { cuerpo: nuevo({ telefono: '12345678' }) });
     assert.deepEqual(Object.keys(t.json.errores), ['telefono']);
+    // Enunciado R4: NIT compacto de 2 a 12 caracteres; uno de 13 con verificador correcto → 422, no 500.
+    const largo = await e.llamar(4, 'POST', '', { cuerpo: nuevo({ nit: '1234567890120' }) });
+    assert.equal(largo.status, 422);
+    assert.deepEqual(Object.keys(largo.json.errores), ['nit']);
     const n = await e.llamar(4, 'POST', '', { cuerpo: nuevo({ nombre: 'x'.repeat(151) }) });
     assert.deepEqual(Object.keys(n.json.errores), ['nombre']);
     const tipos = await e.llamar(4, 'POST', '', { cuerpo: { nombre: 5, nit: 12345679, telefono: 23456789 } });

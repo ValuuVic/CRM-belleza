@@ -16,3 +16,8 @@ body {
 #nav-enlaces {
   min-width: 0;
 }
+
+/* Cantidad de cada línea de producto en el detalle de una oportunidad (B4). */
+.cantidad-linea {
+  width: 5.5rem;
+}

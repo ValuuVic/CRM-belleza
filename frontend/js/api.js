@@ -73,3 +73,35 @@ export const actualizarCliente = (id, cambios) => pedir(rutaCliente(id), { metod
 
 /** POST /api/clientes/:id/tomar (sin cuerpo). */
 export const tomarCliente = (id) => pedir(`${rutaCliente(id)}/tomar`, { metodo: 'POST' });
+
+// ---------- B4: productos y oportunidades ----------
+
+/** GET /api/productos: catálogo activo [{ id, nombre, precio, stock }]. */
+export const obtenerProductos = () => pedir('/productos');
+
+const rutaOportunidad = (id) => `/oportunidades/${encodeURIComponent(String(id))}`;
+const rutaLinea = (id, lineaId) => `${rutaOportunidad(id)}/productos/${encodeURIComponent(String(lineaId))}`;
+
+/** GET /api/oportunidades: resúmenes de las oportunidades propias. */
+export const obtenerOportunidades = () => pedir('/oportunidades');
+
+/** GET /api/oportunidades/:id: detalle (§8.3). */
+export const obtenerOportunidad = (id) => pedir(rutaOportunidad(id));
+
+/** POST /api/oportunidades con { cliente_id, titulo }. */
+export const crearOportunidad = (datos) => pedir('/oportunidades', { metodo: 'POST', cuerpo: datos });
+
+/** PATCH /api/oportunidades/:id con { titulo }. */
+export const actualizarTitulo = (id, titulo) => pedir(rutaOportunidad(id), { metodo: 'PATCH', cuerpo: { titulo } });
+
+/** PATCH /api/oportunidades/:id/etapa con { etapa, motivo_perdida? }. */
+export const cambiarEtapa = (id, cuerpo) => pedir(`${rutaOportunidad(id)}/etapa`, { metodo: 'PATCH', cuerpo });
+
+/** POST /api/oportunidades/:id/productos con { producto_id, cantidad } (el precio lo pone el servidor). */
+export const agregarLinea = (id, datos) => pedir(`${rutaOportunidad(id)}/productos`, { metodo: 'POST', cuerpo: datos });
+
+/** PATCH /api/oportunidades/:id/productos/:lineaId con { cantidad }. */
+export const actualizarLinea = (id, lineaId, cantidad) => pedir(rutaLinea(id, lineaId), { metodo: 'PATCH', cuerpo: { cantidad } });
+
+/** DELETE /api/oportunidades/:id/productos/:lineaId → 204 sin cuerpo. */
+export const eliminarLinea = (id, lineaId) => pedir(rutaLinea(id, lineaId), { metodo: 'DELETE' });

@@ -6,7 +6,7 @@
 // - Las pruebas que modifican datos (altas, ediciones, tomas, duplicados, límite y concurrencia
 //   real de InnoDB) quedan como `todo` hasta disponer de una base de pruebas restablecible
 //   acordada con la Parte A. Las cifras esperadas salen de docs/especificacion.md §13.3 y
-//   docs/specs/B3-clientes.md (Valeria 3/10, Carlos 9/10, seis clientes disponibles).
+//   docs/specs/B3-clientes.md y la semilla del enunciado §11 (Valeria 3/10, Carlos 9/10, seis clientes disponibles).
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { pool, verificarConexion } from '../src/config/db.js';

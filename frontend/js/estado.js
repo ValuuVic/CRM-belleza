@@ -30,7 +30,37 @@ const estadoInicial = () => ({
   aviso: null, // { tipo: 'warning' | 'danger' | 'info', texto }
   login: { cargando: false, correo: '', errores: {}, mensaje: null },
   cartera: carteraInicial(),
+  oportunidades: tableroInicial(),
+  detalle: detalleInicial(),
 });
+
+/**
+ * Tablero de oportunidades (B4-22).
+ * - lista: resúmenes de GET /api/oportunidades.
+ * - formulario: null o { valores: { cliente_id, titulo }, errores, mensaje, enviando, cargandoClientes }.
+ * - clientes: cartera propia para elegir el cliente de la nueva oportunidad.
+ */
+export function tableroInicial() {
+  return { cargando: false, lista: [], error: null, cargada: false, formulario: null, clientes: [] };
+}
+
+/**
+ * Detalle de una oportunidad (B4-23 a B4-25).
+ * - datos: último detalle confirmado por la API; un error (p. ej. 409 de stock) no lo cambia.
+ * - catalogo: productos activos para agregar líneas.
+ * - enviando: acción en curso o null; mensaje: { tipo, texto } de la última acción.
+ * - errores: 422 por formulario: { titulo, linea: { producto_id, cantidad }, lineas: { [id]: cantidad }, perdida }.
+ * - valores: lo escrito en los formularios, para conservarlo ante un error.
+ * - perdida: true mientras se muestra el formulario del motivo de pérdida.
+ */
+export function detalleInicial() {
+  return {
+    id: null, cargando: false, datos: null, error: null, catalogo: [],
+    enviando: null, mensaje: null, perdida: false,
+    errores: { titulo: null, linea: {}, lineas: {}, perdida: null },
+    valores: { titulo: null, linea: { producto_id: '', cantidad: '1' }, lineas: {}, perdida: '' },
+  };
+}
 
 /**
  * Estado de la cartera (B2-15, B3).
@@ -83,7 +113,9 @@ export function cerrarSesion() {
   } catch {
     // sin almacenamiento
   }
-  actualizar({ sesion: null, cartera: carteraInicial(), login: estadoInicial().login });
+  actualizar({
+    sesion: null, cartera: carteraInicial(), oportunidades: tableroInicial(), detalle: detalleInicial(), login: estadoInicial().login,
+  });
 }
 
 /** Solo para las pruebas: vuelve al estado inicial leyendo de nuevo el almacenamiento. */

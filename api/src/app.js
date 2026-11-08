@@ -8,6 +8,8 @@ import { rutaNoEncontrada, manejadorErrores } from './middleware/errores.js';
 import { pool as poolPorDefecto } from './config/db.js';
 import { crearRutasAuth } from './rutas/auth.js';
 import { crearRutasClientes } from './rutas/clientes.js';
+import { crearRutasProductos } from './rutas/productos.js';
+import { crearRutasOportunidades } from './rutas/oportunidades.js';
 
 /**
  * @param {{ origenPermitido?: string, pool?: { execute: Function } }} [opciones]
@@ -36,6 +38,8 @@ export function crearApp({ origenPermitido = process.env.CORS_ORIGIN, pool = poo
   // Rutas de la API (fases B2–B5).
   app.use('/api/auth', crearRutasAuth({ pool }));
   app.use('/api/clientes', crearRutasClientes({ pool }));
+  app.use('/api/productos', crearRutasProductos({ pool }));
+  app.use('/api/oportunidades', crearRutasOportunidades({ pool }));
   // Parte A (docs/plan.md §3.4): aquí se montará el router de api/src/rutas/reportes.js en /api/reportes.
 
   app.use(rutaNoEncontrada);

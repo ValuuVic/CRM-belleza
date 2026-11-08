@@ -10,6 +10,7 @@ import { ErrorValidacion, peticionInvalida } from './errores.js';
  * Normaliza y valida un NIT guatemalteco (R4).
  * - Elimina espacios y guiones, convierte a mayúsculas y quita los ceros iniciales.
  * - "CF" (consumidor final) es válido y se representa como null.
+ * - Ya compacto, tiene entre 2 y 12 caracteres (enunciado R4; columna clientes.nit VARCHAR(12)).
  * - El último carácter es el dígito verificador (0-9 o K), calculado con módulo 11:
  *   los dígitos del cuerpo se multiplican por pesos n+1 … 2 (de izquierda a derecha),
  *   verificador = (11 - (suma % 11)) % 11, y 10 se representa como "K".
@@ -17,6 +18,8 @@ import { ErrorValidacion, peticionInvalida } from './errores.js';
  * @param {unknown} valor
  * @returns {{ valido: boolean, nit: string | null }}
  */
+export const NIT_LONGITUD_MAXIMA = 12;
+
 export function normalizarNit(valor) {
   if (typeof valor !== 'string') return { valido: false, nit: null };
 
@@ -24,7 +27,8 @@ export function normalizarNit(valor) {
   if (limpio === 'CF') return { valido: true, nit: null };
 
   const sinCeros = limpio.replace(/^0+/, '');
-  if (!/^\d+[\dK]$/.test(sinCeros)) return { valido: false, nit: null };
+  // La expresión exige al menos 2 caracteres (un dígito de cuerpo + verificador).
+  if (!/^\d+[\dK]$/.test(sinCeros) || sinCeros.length > NIT_LONGITUD_MAXIMA) return { valido: false, nit: null };
 
   const cuerpo = sinCeros.slice(0, -1);
   const verificador = sinCeros.slice(-1);
@@ -153,11 +157,9 @@ export function validarCliente(cuerpo, { parcial = false } = {}) {
   const valores = {};
 
   if (debeValidar('nombre')) {
-    const nombre = typeof cuerpo.nombre === 'string' ? cuerpo.nombre.trim() : cuerpo.nombre;
-    if (nombre === undefined || nombre === null || nombre === '') errores.nombre = 'Ingrese el nombre del cliente';
-    else if (typeof nombre !== 'string') errores.nombre = 'El nombre debe ser un texto';
-    else if (nombre.length > LONGITUD_NOMBRE_CLIENTE) errores.nombre = `El nombre no puede superar ${LONGITUD_NOMBRE_CLIENTE} caracteres`;
-    else valores.nombre = nombre;
+    const r = textoObligatorio(cuerpo.nombre, { maximo: LONGITUD_NOMBRE_CLIENTE, vacio: 'Ingrese el nombre del cliente', etiqueta: 'El nombre' });
+    if (r.error) errores.nombre = r.error;
+    else valores.nombre = r.valor;
   }
 
   if (debeValidar('nit')) {
@@ -186,4 +188,55 @@ export function validarCliente(cuerpo, { parcial = false } = {}) {
 
   if (Object.keys(errores).length) throw new ErrorValidacion(errores);
   return valores;
+}
+
+// ---------------------------------------------------------------------------
+// Validaciones comunes de las rutas (B3, B4). Las funciones de campo devuelven
+// { valor } o { error } y la ruta reúne los errores en un ErrorValidacion (422).
+// ---------------------------------------------------------------------------
+
+/**
+ * Parámetros de consulta admitidos por la ruta (decisión D6 propuesta, confirmada para B3 y B4):
+ * cualquier otro parámetro o un parámetro repetido → 400. Mensajes fijos: no se repite en la
+ * respuesta el nombre enviado por el cliente.
+ */
+export function exigirConsulta(req, admitidos = []) {
+  for (const [clave, valor] of Object.entries(req.query ?? {})) {
+    if (!admitidos.includes(clave)) throw peticionInvalida('Parámetro de consulta no admitido');
+    if (typeof valor !== 'string') throw peticionInvalida('Cada parámetro de consulta debe indicarse una sola vez');
+  }
+}
+
+/**
+ * Texto obligatorio recortado de 1 a `maximo` caracteres.
+ * @param {unknown} valor
+ * @param {{ maximo: number, vacio: string, etiqueta: string }} opciones
+ * @returns {{ valor: string } | { error: string }}
+ */
+export function textoObligatorio(valor, { maximo, vacio, etiqueta }) {
+  const texto = typeof valor === 'string' ? valor.trim() : valor;
+  if (texto === undefined || texto === null || texto === '') return { error: vacio };
+  if (typeof texto !== 'string') return { error: `${etiqueta} debe ser un texto` };
+  // Se cuentan caracteres (puntos de código), como VARCHAR de MySQL; .length contaría un emoji como 2.
+  if ([...texto].length > maximo) return { error: `${etiqueta} no puede superar ${maximo} caracteres` };
+  return { valor: texto };
+}
+
+/**
+ * Identificador enviado en el cuerpo JSON (cliente_id, producto_id): entero positivo seguro.
+ * Solo se aceptan números JSON; "5" (texto) no es válido.
+ * @returns {{ valor: number } | { error: string }}
+ */
+export function idCuerpo(valor, mensaje) {
+  return Number.isSafeInteger(valor) && valor > 0 ? { valor } : { error: mensaje };
+}
+
+export const CANTIDAD_MINIMA = 1;
+export const CANTIDAD_MAXIMA = 999;
+
+/** Cantidad de una línea (R6, B4-09): entero JSON entre 1 y 999. */
+export function cantidadValida(valor) {
+  return Number.isInteger(valor) && valor >= CANTIDAD_MINIMA && valor <= CANTIDAD_MAXIMA
+    ? { valor }
+    : { error: `La cantidad debe ser un número entero entre ${CANTIDAD_MINIMA} y ${CANTIDAD_MAXIMA}` };
 }
