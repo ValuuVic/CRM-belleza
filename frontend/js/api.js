@@ -105,3 +105,14 @@ export const actualizarLinea = (id, lineaId, cantidad) => pedir(rutaLinea(id, li
 
 /** DELETE /api/oportunidades/:id/productos/:lineaId → 204 sin cuerpo. */
 export const eliminarLinea = (id, lineaId) => pedir(rutaLinea(id, lineaId), { metodo: 'DELETE' });
+
+// ---------- B5: actividades ----------
+
+/** GET /api/actividades?estado=pendiente|completada (sin estado: todas). */
+export const obtenerActividades = (estado) => pedir(estado ? `/actividades?${new URLSearchParams({ estado })}` : '/actividades');
+
+/** POST /api/clientes/:id/actividades con { tipo, descripcion, vence_en? } (vence_en ISO con zona). */
+export const crearActividad = (clienteId, datos) => pedir(`${rutaCliente(clienteId)}/actividades`, { metodo: 'POST', cuerpo: datos });
+
+/** PATCH /api/actividades/:id con { completada } (booleano JSON). */
+export const marcarActividad = (id, completada = true) => pedir(`/actividades/${encodeURIComponent(String(id))}`, { metodo: 'PATCH', cuerpo: { completada } });

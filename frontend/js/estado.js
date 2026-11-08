@@ -32,7 +32,23 @@ const estadoInicial = () => ({
   cartera: carteraInicial(),
   oportunidades: tableroInicial(),
   detalle: detalleInicial(),
+  actividades: actividadesInicial(),
 });
+
+/**
+ * Actividades comerciales (B5-16 a B5-20; F4).
+ * - pestana: 'pendiente' | 'completada'; lista: respuesta de GET /api/actividades?estado=<pestana>.
+ * - completando: id de la actividad que se está marcando, o null.
+ * - mensaje: { tipo, texto } del resultado de la última acción sobre la lista.
+ * - formulario: null o { valores: { cliente_id, tipo, descripcion, vence_en }, errores, mensaje, enviando, cargandoClientes }.
+ * - clientes: cartera propia para elegir el cliente de la nueva actividad.
+ */
+export function actividadesInicial() {
+  return {
+    pestana: 'pendiente', cargando: false, cargada: false, lista: [], error: null,
+    completando: null, mensaje: null, formulario: null, clientes: [],
+  };
+}
 
 /**
  * Tablero de oportunidades (B4-22).
@@ -114,7 +130,8 @@ export function cerrarSesion() {
     // sin almacenamiento
   }
   actualizar({
-    sesion: null, cartera: carteraInicial(), oportunidades: tableroInicial(), detalle: detalleInicial(), login: estadoInicial().login,
+    sesion: null, cartera: carteraInicial(), oportunidades: tableroInicial(), detalle: detalleInicial(),
+    actividades: actividadesInicial(), login: estadoInicial().login,
   });
 }
 

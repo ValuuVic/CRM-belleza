@@ -15,6 +15,25 @@ export function formatearFecha(iso) {
   return Number.isNaN(fecha.getTime()) ? '' : FORMATO_FECHA.format(fecha);
 }
 
+// Guatemala usa UTC−6 todo el año, sin horario de verano (R7): el desplazamiento es fijo.
+export const DESPLAZAMIENTO_GUATEMALA = '-06:00';
+const FECHA_LOCAL = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+/**
+ * Valor de un <input type="datetime-local"> ("2026-12-01T10:00") → ISO 8601 con la zona de
+ * Guatemala ("2026-12-01T10:00:00-06:00") para la API (B5-17, R8). No depende de la zona del
+ * navegador. Vacío → null (sin vencimiento). Un texto que no tiene ese formato se devuelve tal cual:
+ * la API lo rechaza con 422 y el mensaje aparece bajo el campo.
+ */
+export function localGuatemalaAIso(valor) {
+  const texto = String(valor ?? '').trim();
+  if (texto === '') return null;
+  const m = FECHA_LOCAL.exec(texto);
+  if (!m) return texto;
+  const [, a, mes, dia, h, min, s = '00'] = m;
+  return `${a}-${mes}-${dia}T${h}:${min}:${s}${DESPLAZAMIENTO_GUATEMALA}`;
+}
+
 /** Indicador de cartera: "3 de 10". */
 export function formatearCartera(cantidad, maximo = MAXIMO_CARTERA) {
   const n = Number.isInteger(cantidad) && cantidad >= 0 ? cantidad : 0;

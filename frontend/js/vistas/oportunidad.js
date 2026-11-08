@@ -7,12 +7,7 @@
 import { escaparHtml } from '../util/escape.js';
 import { formatearFecha, formatearQuetzales } from '../util/formato.js';
 import { estaCerrada, etiqueta, transicionesVisibles } from '../util/embudo.js';
-import { campo } from './campo.js';
-
-const spinner = (texto) => `
-  <div class="d-flex align-items-center gap-2 text-body-secondary py-3" role="status">
-    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ${escaparHtml(texto)}
-  </div>`;
+import { campo, spinner } from './campo.js';
 
 const volver = '<a class="d-inline-block mb-2" href="#/oportunidades">← Volver a oportunidades</a>';
 

@@ -30,6 +30,7 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-10 | 2026-11-08 | B | B3 · plan y `api/test/ayuda/bd-simulada.js` | Corregido | Pendiente (sin commit) |
 | IA-11 | 2026-11-08 | B | B4 · rutas, pruebas de concurrencia y SPA de oportunidades | Corregido | Pendiente (sin commit) |
 | IA-12 | 2026-11-08 | B | `docs/especificacion.md` y `api/test/integracion-b3.test.js` (lectura del enunciado) | Corregido | Pendiente (sin commit) |
+| IA-13 | 2026-11-08 | B | B5 · actividades (API, simulación y SPA) | Corregido | Pendiente (sin commit) |
 
 ---
 
@@ -392,5 +393,49 @@ El propio agente desconfió del resultado porque contradecía las cifras de cont
 **Lección.** Para leer tablas de un PDF no basta la extracción de texto plano: hay que usar una herramienta que respete la estructura de la tabla o contrastar el resultado con otros datos del mismo documento (aquí, las cifras de control) antes de cambiar especificaciones o pruebas.
 
 **Verificación.** `npm test` en `api/` da 255 superadas y 0 fallidas tras la corrección (la prueba de integración afectada se omite hasta I1, pero su valor esperado coincide con la semilla oficial).
+
+**Commit.** Pendiente (sin commit).
+
+---
+
+## IA-13 — Errores del agente en la fase B5 (actividades)
+
+**1. SQL construido con plantillas de texto.**
+- **Propuesta:** en `api/src/servicios/actividades.js`, las consultas se construían concatenando constantes mediante plantillas (`${SELECT_ACTIVIDAD} WHERE …${ORDEN}`).
+- **Por qué era incorrecto:** aunque las piezas eran constantes, el patrón contradice la regla S3 del proyecto (SQL literal con `?`) y dificulta revisar qué consulta llega a MySQL.
+- **Detección:** el hook `revisar-cambio.mjs` bloqueó la escritura con el aviso «Consulta SQL con interpolación ${...}».
+- **Corrección:** cada consulta es un texto literal completo, como en B3 y B4.
+
+**2. Respuesta del PATCH construida con una lectura sin bloqueo.**
+- **Propuesta:** `PATCH /api/actividades/:id` localizaba el cliente con una lectura sin bloqueo, bloqueaba el cliente y la actividad, actualizaba y, para responder, volvía a leer la actividad con un `JOIN` sin bloqueo.
+- **Por qué era incorrecto:** en REPEATABLE READ, la primera lectura sin bloqueo fija la instantánea. Si el cliente se asignaba a ese vendedor justo en ese hueco (por ejemplo, desde un panel que no bloqueara al vendedor), el `UPDATE` se confirmaba, pero la relectura no veía la fila y la API respondía 200 con cuerpo `null`.
+- **Detección:** lo señaló el subagente `revisor-seguridad` (hallazgo 1, gravedad baja).
+- **Corrección:**
+  - Las lecturas con bloqueo devuelven los datos necesarios y la respuesta se construye con ellos (`marcarCompletada`), sin otra lectura consistente.
+  - El `UPDATE` también filtra por `cliente_id`; si no afecta exactamente una fila, se hace rollback.
+  - En el POST, si la relectura de la actividad recién creada no la encuentra, se hace rollback.
+  - Pruebas nuevas: después del bloqueo no hay lecturas sin bloqueo, y un cliente asignado al vendedor a mitad de la petición devuelve 200 con la actividad, nunca `null`.
+  - La base simulada no reproduce las instantáneas de InnoDB, así que la confirmación definitiva queda pendiente de I1.
+
+**3. Respuestas tardías aplicadas a otra sesión en la SPA.**
+- **Propuesta:** `acciones-actividades.js` solo descartaba las respuestas de una pestaña que ya no estaba activa.
+- **Por qué era incorrecto:** si alguien cerraba sesión con una petición en curso y otra persona entraba enseguida, la respuesta de la primera sesión se escribía en el estado de la segunda (S4).
+- **Detección:** lo señaló el subagente `revisor-seguridad` (hallazgo 2, gravedad baja).
+- **Corrección:** cada acción guarda el token al empezar y descarta la respuesta si el token cambió. Se añadió una prueba en `frontend/test/actividades.test.js`. Las acciones de B3 y B4 siguen el mismo patrón y quedan pendientes de revisión.
+
+**4. Fechas fuera del rango de DATETIME aceptadas como válidas.**
+- **Propuesta:** `fechaUtc` aceptaba cualquier año de 4 dígitos.
+- **Por qué era incorrecto:** `9999-12-31T23:00:00-06:00` pasa al año 10000 en UTC. MySQL rechazaría ese valor con un error sin traducir y la API respondería 500 en lugar de 422 (R8, §8.6).
+- **Detección:** lo señaló el subagente `revisor-contrato`.
+- **Corrección:** `fechaUtc` rechaza los años UTC fuera del rango 1000–9999. Hay pruebas de ambos límites y de valores fuera de ellos.
+
+**5. Errores en las propias pruebas.**
+- Una prueba de seguridad enviaba un cuerpo en un `GET`, y fetch lo rechaza. Se detectó al ejecutar la suite (1 fallo de 111).
+- La cadena de una prueba de inyección contenía una sentencia de borrado de tablas, y el hook la bloqueó (CLAUDE.md §3). Se sustituyó por una inyección con `UPDATE`, que comprueba lo mismo: el texto viaja en los parámetros.
+
+**Verificación.**
+- `npm test` en `api/`: 421 pruebas, 374 superadas, 0 fallidas, 23 omitidas y 24 `todo`. Las omitidas y las `todo` dependen de I1 e I3.
+- `node --test frontend/test/*.test.js`: 100 de 100.
+- Pruebas de los hooks: 34 de 34.
 
 **Commit.** Pendiente (sin commit).

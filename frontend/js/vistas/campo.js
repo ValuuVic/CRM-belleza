@@ -7,14 +7,21 @@
 
 import { escaparHtml as e } from '../util/escape.js';
 
+/** Indicador de carga compartido por las vistas (B3, B4, B5). */
+export const spinner = (texto) => `
+  <div class="d-flex align-items-center gap-2 text-body-secondary py-3" role="status">
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ${e(texto)}
+  </div>`;
+
 /**
  * @param {{ id: string, nombre: string, tipo?: string, etiqueta: string, valor?: string | number, error?: string,
  *   autocompletar?: string, cargando?: boolean, requerido?: boolean, ayuda?: string, maxlength?: number,
- *   min?: number, max?: number, opciones?: { valor: string | number, texto: string }[], vacia?: string }} opciones
+ *   min?: number, max?: number, opciones?: { valor: string | number, texto: string }[], vacia?: string,
+ *   filas?: number }} opciones  Con `filas` se dibuja un <textarea>.
  */
 export function campo({
   id, nombre, tipo = 'text', etiqueta, valor = '', error, autocompletar = 'off', cargando = false,
-  requerido = true, ayuda, maxlength, min, max, opciones, vacia = 'Seleccione…',
+  requerido = true, ayuda, maxlength, min, max, opciones, vacia = 'Seleccione…', filas,
 }) {
   const invalido = error ? ' is-invalid' : '';
   const describe = [ayuda ? `${id}-ayuda` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ');
@@ -25,6 +32,9 @@ export function campo({
         <option value="">${e(vacia)}</option>
         ${opciones.map((o) => `<option value="${e(o.valor)}"${String(o.valor) === String(valor) ? ' selected' : ''}>${e(o.texto)}</option>`).join('')}
       </select>`
+    : filas // texto de varias líneas (B5: descripción de una actividad)
+    ? `<textarea id="${e(id)}" name="${e(nombre)}" class="form-control${invalido}" rows="${e(filas)}"${requerido ? ' required' : ''}${maxlength ? ` maxlength="${e(maxlength)}"` : ''}
+             ${accesibilidad}>${e(valor)}</textarea>`
     : `<input id="${e(id)}" name="${e(nombre)}" type="${e(tipo)}" class="form-control${invalido}"
              value="${e(valor)}" autocomplete="${e(autocompletar)}"${requerido ? ' required' : ''}${maxlength ? ` maxlength="${e(maxlength)}"` : ''}${min !== undefined ? ` min="${e(min)}"` : ''}${max !== undefined ? ` max="${e(max)}"` : ''}
              ${accesibilidad}>`;

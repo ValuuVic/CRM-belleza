@@ -4,13 +4,9 @@
 
 import { escaparHtml } from '../util/escape.js';
 import { formatearCartera, MAXIMO_CARTERA } from '../util/formato.js';
-import { campo } from './campo.js';
+import { campo, spinner } from './campo.js';
 
 const SIN_DATO = '<span class="text-body-secondary">—</span>';
-const spinner = (texto) => `
-  <div class="d-flex align-items-center gap-2 text-body-secondary py-3" role="status">
-    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ${escaparHtml(texto)}
-  </div>`;
 
 const fila = (c, bloqueado) => `
   <tr>
