@@ -439,3 +439,9 @@ El propio agente desconfió del resultado porque contradecía las cifras de cont
 - Pruebas de los hooks: 34 de 34.
 
 **Commit.** Pendiente (sin commit).
+
+**6. Cambio de hooks.**
+- En `.claude\hooks\comun.mjs` se agrego la función `estaVersionado` que hace que las migraciones que ya están en Git no se tocan, y la Parte A sí puede crear y editar las suyas mientras no estén versionadas.
+- En `.claude\hooks\proteger-archivos.mjs` se importo `estaVersionado` y se modifico el bloque `//2. Migraciones` para aceptar las nuevas
+
+**Commit.** `a1e72e1` fix(hooks): permitir a la Parte A crear migraciones nuevas
