@@ -148,7 +148,7 @@ PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
 | A2-28 — Al menos un administrador activo | `A2CuentasTest::test_a2_28_…` (2 pruebas) | Cumple; ver nota 2 |
 | A2-29 — Base de pruebas | `A2CuentasTest::test_a2_29_…` y la suite completa sin errores | Cumple |
 
-**Nota 1 (A2-20).** La prueba del panel comprueba que `activo` cambia y que la cuenta y sus clientes se conservan. El 401 de la API a una cuenta desactivada lo cubren las pruebas de la Parte B (B2-08, CA-03); la prueba manual de punta a punta (desactivar a Valeria en el panel y llamar a la API con su token) queda pendiente para la integración.
+**Nota 1 (A2-20).** La prueba del panel comprueba que `activo` cambia y que la cuenta y sus clientes se conservan. El 401 de la API a una cuenta desactivada lo cubren las pruebas de la Parte B (B2-08, CA-03); la prueba manual de punta a punta (desactivar a Valeria en el panel y llamar a la API con su token) ![error 401](./pictures/error401.png).
 
 **Nota 2 (A2-28).** PHPUnit no puede lanzar dos peticiones HTTP a la vez. La carrera se simula: una administradora que ya pasó el middleware intenta desactivar a la otra cuando, en la base, ya quedó desactivada; el cambio se rechaza porque se decide con los administradores bloqueados. Una segunda prueba comprueba en el registro de consultas que el `SELECT … FOR UPDATE` de los administradores ocurre antes del `UPDATE`.
 
