@@ -166,6 +166,33 @@ describe('B1-04 errores controlados', () => {
       delete RESTRICCIONES_A_CAMPOS.prueba_stock_chk;
     }
   });
+
+  // Nombres de las migraciones de la Parte A (laravel/database/migrations/2026_11_08_*).
+  const CHECK_DE_CAMPOS = {
+    chk_clientes_telefono: 'telefono',
+    chk_actividades_tipo: 'tipo',
+    chk_oportunidad_productos_cantidad: 'cantidad',
+    chk_oportunidades_etapa: 'etapa',
+    chk_oportunidades_motivo: 'motivo_perdida',
+  };
+  for (const [nombre, campo] of Object.entries(CHECK_DE_CAMPOS)) {
+    test(`MySQL 3819 de ${nombre} responde 422 en errores.${campo}`, async () => {
+      const r = await pedir(prueba, `/mysql/3819/${nombre}`);
+      assert.equal(r.status, 422);
+      assert.deepEqual(Object.keys(r.json.errores), [campo]);
+      assert.doesNotMatch(r.texto, /chk_|Check constraint/);
+    });
+  }
+
+  for (const nombre of ['chk_productos_precio', 'chk_productos_stock', 'chk_oportunidad_productos_precio', 'chk_oportunidades_cierre',
+    'chk_historial_etapas_etapa_anterior', 'chk_historial_etapas_etapa_nueva', 'chk_users_rol']) {
+    test(`MySQL 3819 de ${nombre} (valor que arma la API) responde 422 en general`, async () => {
+      const r = await pedir(prueba, `/mysql/3819/${nombre}`);
+      assert.equal(r.status, 422);
+      assert.deepEqual(Object.keys(r.json.errores), ['general']);
+      assert.doesNotMatch(r.texto, /chk_|Check constraint/);
+    });
+  }
 });
 
 describe('B1-05 errores inesperados', () => {
