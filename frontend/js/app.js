@@ -9,12 +9,14 @@ import { guardarBorrador } from './borradores.js';
 import * as cartera from './acciones-cartera.js';
 import * as oportunidades from './acciones-oportunidades.js';
 import * as actividades from './acciones-actividades.js';
+import * as resumen from './acciones-resumen.js'; // A6 (F5), Parte A
 import { escaparHtml } from './util/escape.js';
 import { renderLogin } from './vistas/login.js';
 import { renderCartera } from './vistas/cartera.js';
 import { renderOportunidades } from './vistas/oportunidades.js';
 import { renderOportunidad } from './vistas/oportunidad.js';
 import { renderActividades } from './vistas/actividades.js';
+import { renderResumen } from './vistas/resumen.js'; // A6 (F5), Parte A
 
 const RUTAS_PROTEGIDAS = new Set(['#/cartera', '#/oportunidades', '#/actividades', '#/resumen']);
 const RUTAS = new Set(['#/login', ...RUTAS_PROTEGIDAS]);
@@ -28,18 +30,13 @@ const $navEnlaces = document.getElementById('nav-enlaces');
 
 // ---------- Render ----------
 
-// #/resumen está reservado para la Parte A (F5): aquí solo se muestra el punto de integración.
-const renderResumenReservado = () => `
-  <h1 class="h4">Resumen mensual</h1>
-  <p class="text-body-secondary">Disponible próximamente.</p>`;
-
 function renderVista(estado) {
   if (RUTA_DETALLE.test(estado.ruta)) return renderOportunidad(estado);
   switch (estado.ruta) {
     case '#/cartera': return renderCartera(estado);
     case '#/oportunidades': return renderOportunidades(estado);
     case '#/actividades': return renderActividades(estado);
-    case '#/resumen': return renderResumenReservado();
+    case '#/resumen': return renderResumen(estado);
     default: return renderLogin(estado);
   }
 }
@@ -150,6 +147,7 @@ function alCambiarRuta() {
   if (ruta === '#/cartera') cartera.cargarCartera();
   if (ruta === '#/oportunidades') oportunidades.cargarTablero();
   if (ruta === '#/actividades') actividades.cargarActividades();
+  if (ruta === '#/resumen') resumen.entrarResumen();
   const detalle = RUTA_DETALLE.exec(ruta);
   if (detalle) oportunidades.cargarDetalle(detalle[1]);
 }
@@ -231,6 +229,8 @@ document.addEventListener('click', (evento) => {
     case 'pestana-actividades': actividades.cambiarPestana(boton.dataset.estado); break;
     case 'completar-actividad': actualizar({ aviso: null }); actividades.completar(id); break;
     case 'reintentar-actividades': actividades.cargarActividades(); break;
+    // A6 (F5): resumen mensual
+    case 'reintentar-resumen': resumen.reintentar(); break;
     default: break;
   }
 });
@@ -244,6 +244,11 @@ function alEscribir(evento) {
 }
 document.addEventListener('input', alEscribir);
 document.addEventListener('change', alEscribir);
+
+// A6 (F5): el selector de mes del resumen pide de nuevo las cifras.
+document.addEventListener('change', (evento) => {
+  if (evento.target?.id === 'resumen-mes') resumen.cambiarMes(evento.target.value);
+});
 
 window.addEventListener('hashchange', alCambiarRuta);
 
