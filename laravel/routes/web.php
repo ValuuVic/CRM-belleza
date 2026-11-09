@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AsignacionClienteController;
+use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CuentaController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProfileController;
@@ -43,5 +45,28 @@ Route::middleware(['auth', 'rol:administrador'])
         Route::get('/{producto}/editar', 'edit')->whereNumber('producto')->name('edit');
         Route::put('/{producto}', 'update')->whereNumber('producto')->name('update');
     });
+
+// Clientes: administrador y supervisor, cada uno en su alcance ({cliente} fuera de él → 404, DA4-1).
+// Asignar y reasignar (PUT) y liberar (DELETE) son acciones aparte de los datos (DA4-2).
+Route::middleware(['auth', 'rol:administrador,supervisor'])
+    ->prefix('clientes')->name('clientes.')
+    ->group(function () {
+        Route::controller(ClienteController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/crear', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{cliente}/editar', 'edit')->whereNumber('cliente')->name('edit');
+            Route::put('/{cliente}', 'update')->whereNumber('cliente')->name('update');
+        });
+
+        Route::controller(AsignacionClienteController::class)->group(function () {
+            Route::put('/{cliente}/asignacion', 'update')->whereNumber('cliente')->name('asignacion.update');
+            Route::delete('/{cliente}/asignacion', 'destroy')->whereNumber('cliente')->name('asignacion.destroy');
+        });
+    });
+
+// Eliminar un cliente: solo el administrador, y solo sin oportunidades (L4-04).
+Route::middleware(['auth', 'rol:administrador'])
+    ->delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->whereNumber('cliente')->name('clientes.destroy');
 
 require __DIR__.'/auth.php';
