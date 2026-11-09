@@ -20,8 +20,9 @@ use Illuminate\Validation\ValidationException;
  * El bloqueo de users es la PRIMERA lectura de la transacción: en REPEATABLE READ la instantánea se fija
  * en la primera lectura sin bloqueo, así que el conteo de la cartera, hecho después, ve los datos actuales.
  *
- * El dueño anterior se lee antes de la transacción (al resolver la ruta). Si con el cliente ya bloqueado
- * resulta distinto, lo visto ya no vale y se rechaza (DA4-7).
+ * El dueño anterior es el que se vio antes de la transacción: al asignar y liberar, el que mostró el
+ * formulario (campo oculto vendedor_actual); al editar y eliminar, el leído al resolver la ruta. Si con
+ * el cliente ya bloqueado resulta distinto, lo visto ya no vale y se rechaza (DA4-7).
  */
 class AsignacionClientes
 {
@@ -59,7 +60,7 @@ class AsignacionClientes
     public function actualizar(Cliente $visto, array $datos, User $actor): void
     {
         $this->ejecutar(function () use ($visto, $datos, $actor) {
-            [$cliente] = $this->bloquear($visto, $actor);
+            [$cliente] = $this->bloquear($visto, $visto->vendedor_id, $actor);
             $cliente->update($datos);
         });
     }
@@ -67,11 +68,12 @@ class AsignacionClientes
     /**
      * Asigna un cliente disponible o lo reasigna (D2): las oportunidades abiertas pasan al nuevo vendedor;
      * las cerradas conservan a quien hizo la venta y las actividades siguen al cliente sin tocarlas.
+     * $duenoVisto: el vendedor que mostró el formulario (null = disponible).
      */
-    public function asignar(Cliente $visto, int $nuevoId, User $actor): void
+    public function asignar(Cliente $visto, ?int $duenoVisto, int $nuevoId, User $actor): void
     {
-        $this->ejecutar(function () use ($visto, $nuevoId, $actor) {
-            [$cliente, $usuarios] = $this->bloquear($visto, $actor, [$nuevoId]);
+        $this->ejecutar(function () use ($visto, $duenoVisto, $nuevoId, $actor) {
+            [$cliente, $usuarios] = $this->bloquear($visto, $duenoVisto, $actor, [$nuevoId]);
 
             if ($cliente->vendedor_id === $nuevoId) {
                 $this->rechazar('vendedor_id', 'El cliente ya está asignado a ese vendedor.');
@@ -98,10 +100,10 @@ class AsignacionClientes
     /**
      * Libera un cliente (D3): con oportunidades abiertas se rechaza.
      */
-    public function liberar(Cliente $visto, User $actor): void
+    public function liberar(Cliente $visto, ?int $duenoVisto, User $actor): void
     {
-        $this->ejecutar(function () use ($visto, $actor) {
-            [$cliente] = $this->bloquear($visto, $actor);
+        $this->ejecutar(function () use ($visto, $duenoVisto, $actor) {
+            [$cliente] = $this->bloquear($visto, $duenoVisto, $actor);
 
             if ($cliente->vendedor_id === null) {
                 $this->rechazar('vendedor_id', 'El cliente ya está disponible.');
@@ -123,7 +125,7 @@ class AsignacionClientes
     public function eliminar(Cliente $visto, User $actor): void
     {
         $this->ejecutar(function () use ($visto, $actor) {
-            [$cliente] = $this->bloquear($visto, $actor);
+            [$cliente] = $this->bloquear($visto, $visto->vendedor_id, $actor);
 
             if ($cliente->oportunidades()->exists()) {
                 $this->rechazar('cliente', self::MENSAJE_CON_OPORTUNIDADES);
@@ -134,22 +136,22 @@ class AsignacionClientes
     }
 
     /**
-     * Bloquea el vendedor actual y los de $otros (id ascendente) y después el cliente. Comprueba que el
-     * dueño no haya cambiado (DA4-7) y, para el supervisor, que el cliente siga en su alcance (404).
+     * Bloquea el vendedor visto y los de $otros (id ascendente) y después el cliente. Comprueba que el
+     * dueño siga siendo $duenoVisto (DA4-7) y, para el supervisor, que el cliente siga en su alcance (404).
      *
      * @param  array<int, int>  $otros
      * @return array{0: Cliente, 1: Collection<int, User>}
      */
-    private function bloquear(Cliente $visto, User $actor, array $otros = []): array
+    private function bloquear(Cliente $visto, ?int $duenoVisto, User $actor, array $otros = []): array
     {
-        $usuarios = $this->bloquearUsuarios([$visto->vendedor_id, ...$otros]);
+        $usuarios = $this->bloquearUsuarios([$duenoVisto, ...$otros]);
 
         $cliente = Cliente::whereKey($visto->id)->lockForUpdate()->first();
         if (! $cliente) {
             throw (new ModelNotFoundException)->setModel(Cliente::class, [$visto->id]);
         }
 
-        if ($cliente->vendedor_id !== $visto->vendedor_id) {
+        if ($cliente->vendedor_id !== $duenoVisto) {
             $this->rechazar('cliente', self::MENSAJE_CAMBIO);
         }
 

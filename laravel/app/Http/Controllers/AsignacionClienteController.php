@@ -6,7 +6,6 @@ use App\Http\Requests\AsignacionClienteRequest;
 use App\Models\Cliente;
 use App\Services\AsignacionClientes;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 /**
  * Asignar o reasignar (PUT) y liberar (DELETE) un cliente (A4-17 a A4-22, DA4-2). Las reglas de cartera,
@@ -18,16 +17,16 @@ class AsignacionClienteController extends Controller
 
     public function update(AsignacionClienteRequest $request, Cliente $cliente): RedirectResponse
     {
-        $reasignacion = $cliente->vendedor_id !== null;
-        $this->clientes->asignar($cliente, (int) $request->validated('vendedor_id'), $request->user());
+        $reasignacion = $request->vendedorVisto() !== null;
+        $this->clientes->asignar($cliente, $request->vendedorVisto(), (int) $request->validated('vendedor_id'), $request->user());
 
         return redirect()->route('clientes.edit', $cliente)
             ->with('status', $reasignacion ? 'El cliente se reasignó correctamente.' : 'El cliente se asignó correctamente.');
     }
 
-    public function destroy(Request $request, Cliente $cliente): RedirectResponse
+    public function destroy(AsignacionClienteRequest $request, Cliente $cliente): RedirectResponse
     {
-        $this->clientes->liberar($cliente, $request->user());
+        $this->clientes->liberar($cliente, $request->vendedorVisto(), $request->user());
 
         return redirect()->route('clientes.edit', $cliente)->with('status', 'El cliente quedó disponible.');
     }
