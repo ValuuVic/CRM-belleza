@@ -998,22 +998,30 @@ Estados:
 **Estado:** Decidida e implementada (B4).
 
 ### D2. Reasignación de clientes
-**Decidida:** las oportunidades cerradas se quedan con su vendedor, porque es el crédito de la venta. Las abiertas pasan al nuevo vendedor. Las actividades no se tocan: la API de B ya las muestra según el dueño actual del cliente, no según actividades.vendedor_id (que es “quién la registró”). Al reasignar, el nuevo vendedor las ve solas y el anterior deja de verlas. Hay que cambiar la redacción de D2, que dice que las actividades “se transfieren”, para que coincida.
-**Alternativa descartada:** eliminar el historial o transferir el crédito de las ventas cerradas al nuevo vendedor.
-**Motivo:** conservar la trazabilidad comercial y las cifras de ventas por vendedor.
-**Estado:** Propuesta; la deciden ambas integrantes y la implementa la Parte A (L4).
+**Decisión:**
+- Al reasignar un cliente, sus oportunidades **abiertas** pasan al nuevo vendedor.
+- Las oportunidades **cerradas** (ganadas o perdidas) conservan al vendedor que las cerró: son el crédito de la venta y forman parte de sus cifras.
+- Las **actividades no se modifican: siguen al cliente.** La API las muestra según el dueño actual del cliente (`clientes.vendedor_id`), no según `actividades.vendedor_id`, que solo registra quién las creó. Al reasignar, el nuevo vendedor ve las actividades del cliente y el anterior deja de verlas, sin cambiar ninguna fila de `actividades`.
+
+**Alternativa descartada:** transferir también las oportunidades cerradas (y su crédito) al nuevo vendedor, reescribir `actividades.vendedor_id` con el nuevo responsable o eliminar el historial.
+**Motivo:** conservar la trazabilidad comercial y las cifras de ventas de cada vendedor; quién registró una actividad es un dato histórico que no debe cambiar.
+**Estado:** Decidida e implementada en el panel (A4: `App\Services\AsignacionClientes`; criterio A4-20).
 
 ### D3. Liberación de clientes
-**Decidida:** no se libera un cliente con oportunidades abiertas. Mensaje: “Cierre o reasigne las oportunidades abiertas antes de liberar al cliente."
-**Alternativa descartada:** liberar clientes con oportunidades abiertas sin responsable.
+**Decisión:** no se libera un cliente que tenga oportunidades abiertas; el panel lo rechaza con «Cierre o reasigne las oportunidades abiertas antes de liberar al cliente.». Un cliente que solo tiene oportunidades cerradas sí se libera, y esas oportunidades conservan a su vendedor (D2).
+**Alternativa descartada:** liberar el cliente y dejar sus oportunidades abiertas sin responsable.
 **Motivo:** evitar oportunidades comerciales sin seguimiento.
-**Estado:** Propuesta; la deciden ambas integrantes y la implementa la Parte A (L4).
+**Estado:** Decidida e implementada en el panel (A4; criterio A4-21). Las oportunidades abiertas se comprueban con el cliente bloqueado, en el orden de D17.
 
 ### D4. Desactivación de vendedores
-**Decidida:** sus clientes y oportunidades abiertas se quedan con él hasta que el supervisor o el admin reasigne el cliente. Al reasignar se aplica D2. La lista de clientes del panel lo marca como “vendedor inactivo”.
-**Alternativa descartada:** eliminar automáticamente los clientes, las oportunidades o los historiales.
-**Motivo:** conservar los datos comerciales.
-**Estado:** Propuesta; falta definir qué pasa con las oportunidades abiertas. El bloqueo inmediato ya está implementado en la API (B2 y B3).
+**Decisión:**
+- Al desactivar una cuenta, su acceso se bloquea de inmediato en las dos puertas: la API responde 401 a su siguiente petición y el panel cierra su sesión.
+- Sus clientes y sus oportunidades abiertas se quedan con él, visibles para la administración y para su supervisor, con la marca «vendedor inactivo», hasta que el administrador o el supervisor reasigne cada cliente. Al reasignarlo se aplica D2.
+- No hay reasignación ni liberación automática.
+
+**Alternativa descartada:** eliminar o liberar automáticamente sus clientes, oportunidades o historiales, o repartirlos solos entre otros vendedores.
+**Motivo:** conservar los datos comerciales y que la reasignación la decida una persona.
+**Estado:** Decidida e implementada: bloqueo en la API (B2 y B3) y en el panel (A2, middleware `cuenta.vigente`); marca «vendedor inactivo» y reasignación en el panel (A4; criterio A4-22).
 
 ### D5. Campos adicionales de la API
 **Decisión:** los campos del cuerpo que no aparecen en el contrato se ignoran y nunca se utilizan para modificar propiedades internas (`vendedor_id`, `precio_unitario`, `etapa` al crear, `total`…).
