@@ -20,6 +20,9 @@
                             Cuentas
                         </x-nav-link>
                     @endif
+                    <x-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')">
+                        Productos
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -80,6 +83,9 @@
                     Cuentas
                 </x-responsive-nav-link>
             @endif
+            <x-responsive-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')">
+                Productos
+            </x-responsive-nav-link>
         </div>
 
         <!-- Responsive Settings Options -->
