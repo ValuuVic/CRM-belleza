@@ -130,7 +130,7 @@ Los criterios A6-01 y A6-02 son los del núcleo, con el mismo número.
 | Id | Pregunta | Recomendación | Criterio |
 |---|---|---|---|
 | P1 | La paridad entre panel y API: ¿basta con que las dos pruebas usen la misma tabla de referencia (A5 §5.4), o se agrega una prueba de punta a punta que compare la API con el panel en vivo? | Las dos cosas: las pruebas automáticas con la tabla, más una comprobación de punta a punta registrada en `docs/verificacion.md` | A6-07 |
-| P2 | Hay archivos de la Parte B que deben cambiar para integrar A6: una línea en `api/src/app.js` (montar `/api/reportes`) y, en la SPA, `frontend/js/app.js` (render y carga de `#/resumen`, eventos del selector), `estado.js` (`resumenInicial()`) y `api.js` (`obtenerResumen(mes)`). ¿Los cambia la Parte A con autorización de la Parte B, o los hace la Parte B? | La Parte A los cambia, con la autorización explícita de la Parte B y en commits separados que tocan solo esas líneas | A6-09 a A6-12 |
+| P2 | Hay archivos de la Parte B que deben cambiar para integrar A6: una línea en `api/src/app.js` (montar `/api/reportes`) y, en la SPA, `frontend/js/app.js` (render y carga de `#/resumen`, eventos del selector), `estado.js` (`resumenInicial()`) y `api.js` (`obtenerResumen(mes)`). ¿Los cambia la Parte A con autorización de la Parte B, o los hace la Parte B? | La Parte A ya los cambio, con la autorización explícita de la Parte B y en commits separados que tocan solo esas líneas | A6-09 a A6-12 |
 
 ## 8. Archivos previstos
 
