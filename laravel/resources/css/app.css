@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Paleta de CRM Belleza (tailwind.config.js): texto #4A4A4A sobre el rosa más claro #FFF5F5. */
+@layer base {
+    body {
+        @apply bg-crm-claro text-crm-texto;
+    }
+}

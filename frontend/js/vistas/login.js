@@ -12,7 +12,7 @@ export function renderLogin(estado) {
         <div class="card shadow-sm mt-4">
           <div class="card-body p-4">
             <h1 class="h4 mb-1">Iniciar sesión</h1>
-            <p class="text-body-secondary mb-4">Acceso para vendedores de CRM Belleza.</p>
+            <p class="text-body-secondary mb-4">Acceso para vendedores de LUMINA BEAUTY.</p>
             ${mensaje ? `<div class="alert alert-danger" role="alert">${escaparHtml(mensaje)}</div>` : ''}
             <form id="form-login" novalidate>
               ${campo({ id: 'login-correo', nombre: 'correo', tipo: 'email', etiqueta: 'Correo electrónico', valor: correo, error: errores.correo, autocompletar: 'username', cargando })}

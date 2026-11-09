@@ -11,7 +11,7 @@
             </h2>
 
             <a href="{{ route('clientes.create') }}"
-               class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">
+               class="inline-flex items-center px-4 py-2 bg-crm-medio border border-transparent rounded-md font-semibold text-xs text-crm-texto uppercase tracking-widest hover:bg-crm-suave">
                 Nuevo cliente
             </a>
         </div>

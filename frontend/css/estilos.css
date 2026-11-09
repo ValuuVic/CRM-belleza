@@ -35,3 +35,155 @@
 .cantidad-linea {
   width: 5.5rem;
 }
+
+/* ---------- Paleta de CRM Belleza (la misma que el panel; autorizado por la Parte B) ----------
+   claro #FFF5F5: color dominante, fondo de la página y de la barra.
+   suave #F7D6D0: bordes y fondo al pasar el puntero.
+   medio #E2B4BD: botones principales, bordes de campos, foco y enlace activo.
+   texto #4A4A4A: todo el texto (8.6:1 sobre #FFF5F5; 4.9:1 sobre #E2B4BD). El blanco sobre #E2B4BD
+   no llega a 3:1, así que los botones rosas llevan texto #4A4A4A.
+   Los colores de estado de Bootstrap (danger, success, warning) no cambian: comunican errores y avisos. */
+:root,
+[data-bs-theme='light'] {
+  --crm-claro: #fff5f5;
+  --crm-suave: #f7d6d0;
+  --crm-medio: #e2b4bd;
+  --crm-texto: #4a4a4a;
+
+  --bs-body-bg: var(--crm-claro);
+  --bs-body-bg-rgb: 255, 245, 245;
+  --bs-tertiary-bg: var(--crm-claro);
+  --bs-tertiary-bg-rgb: 255, 245, 245;
+  --bs-secondary-bg: var(--crm-suave);
+  --bs-secondary-bg-rgb: 247, 214, 208;
+  --bs-body-color: var(--crm-texto);
+  --bs-body-color-rgb: 74, 74, 74;
+  --bs-emphasis-color: var(--crm-texto);
+  --bs-emphasis-color-rgb: 74, 74, 74;
+  --bs-secondary-color: rgba(74, 74, 74, 0.85);
+  --bs-secondary-color-rgb: 74, 74, 74;
+  --bs-heading-color: var(--crm-texto);
+  --bs-border-color: var(--crm-suave);
+  --bs-link-color: var(--crm-texto);
+  --bs-link-color-rgb: 74, 74, 74;
+  --bs-link-hover-color: var(--crm-texto);
+  --bs-link-hover-color-rgb: 74, 74, 74;
+  --bs-primary: var(--crm-medio);
+  --bs-primary-rgb: 226, 180, 189;
+  --bs-focus-ring-color: rgba(226, 180, 189, 0.6);
+}
+
+/* Barra superior: el mismo rosa claro de la página, separada por un borde rosa. */
+.navbar {
+  background-color: var(--crm-claro) !important;
+  border-bottom-color: var(--crm-medio) !important;
+}
+
+.navbar-brand,
+.nav-link {
+  color: var(--crm-texto);
+}
+
+.nav-link:hover,
+.nav-link:focus {
+  color: var(--crm-texto);
+  background-color: var(--crm-suave);
+  border-radius: 0.375rem;
+}
+
+/* Enlace de la vista activa (app.js le pone .active y aria-current). */
+.nav-link.active {
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--crm-medio);
+}
+
+/* Tarjetas, tablas y campos en blanco sobre el rosa claro, para que el contenido se lea bien. */
+.card {
+  --bs-card-bg: #fff;
+  --bs-card-border-color: var(--crm-suave);
+  --bs-card-cap-bg: var(--crm-claro);
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--crm-texto);
+  --bs-table-border-color: var(--crm-suave);
+  --bs-table-hover-bg: rgba(247, 214, 208, 0.5);
+  --bs-table-hover-color: var(--crm-texto);
+}
+
+.list-group {
+  --bs-list-group-bg: #fff;
+  --bs-list-group-border-color: var(--crm-suave);
+}
+
+.nav-tabs {
+  --bs-nav-tabs-border-color: var(--crm-suave);
+  --bs-nav-tabs-link-hover-border-color: var(--crm-suave) var(--crm-suave) var(--crm-suave);
+  --bs-nav-tabs-link-active-bg: #fff;
+  --bs-nav-tabs-link-active-color: var(--crm-texto);
+  --bs-nav-tabs-link-active-border-color: var(--crm-suave) var(--crm-suave) #fff;
+}
+
+.form-control,
+.form-select {
+  background-color: #fff;
+  border-color: var(--crm-medio);
+  color: var(--crm-texto);
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--crm-medio);
+  box-shadow: 0 0 0 0.25rem rgba(226, 180, 189, 0.6);
+}
+
+.form-check-input:checked {
+  background-color: var(--crm-medio);
+  border-color: var(--crm-medio);
+}
+
+/* Botón principal: rosa medio con texto oscuro; al pasar el puntero, rosa suave. */
+.btn-primary {
+  --bs-btn-color: var(--crm-texto);
+  --bs-btn-bg: var(--crm-medio);
+  --bs-btn-border-color: var(--crm-medio);
+  --bs-btn-hover-color: var(--crm-texto);
+  --bs-btn-hover-bg: var(--crm-suave);
+  --bs-btn-hover-border-color: var(--crm-medio);
+  --bs-btn-focus-shadow-rgb: 226, 180, 189;
+  --bs-btn-active-color: var(--crm-texto);
+  --bs-btn-active-bg: var(--crm-medio);
+  --bs-btn-active-border-color: var(--crm-texto);
+  --bs-btn-disabled-color: var(--crm-texto);
+  --bs-btn-disabled-bg: var(--crm-medio);
+  --bs-btn-disabled-border-color: var(--crm-medio);
+}
+
+.btn-outline-primary,
+.btn-outline-secondary {
+  --bs-btn-color: var(--crm-texto);
+  --bs-btn-border-color: var(--crm-medio);
+  --bs-btn-hover-color: var(--crm-texto);
+  --bs-btn-hover-bg: var(--crm-suave);
+  --bs-btn-hover-border-color: var(--crm-medio);
+  --bs-btn-focus-shadow-rgb: 226, 180, 189;
+  --bs-btn-active-color: var(--crm-texto);
+  --bs-btn-active-bg: var(--crm-medio);
+  --bs-btn-active-border-color: var(--crm-medio);
+  --bs-btn-disabled-color: var(--crm-texto);
+  --bs-btn-disabled-border-color: var(--crm-suave);
+}
+
+.btn-link {
+  --bs-btn-color: var(--crm-texto);
+  --bs-btn-hover-color: var(--crm-texto);
+}
+
+/* Etiquetas neutras (p. ej. el tipo de actividad) en rosa; las de estado conservan su color. */
+.text-bg-secondary,
+.text-bg-light {
+  color: var(--crm-texto) !important;
+  background-color: var(--crm-suave) !important;
+}
