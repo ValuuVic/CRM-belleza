@@ -32,7 +32,8 @@ class AsignacionClientes
 
     public const MENSAJE_CON_OPORTUNIDADES = 'No se puede eliminar: el cliente tiene oportunidades registradas.';
 
-    public const MENSAJE_ABIERTAS = 'El cliente tiene oportunidades abiertas. Reasígnelo o cierre sus oportunidades antes de liberarlo.';
+    // Texto fijado por D3 en docs/especificacion.md (spec-v1.1).
+    public const MENSAJE_ABIERTAS = 'Cierre o reasigne las oportunidades abiertas antes de liberar al cliente.';
 
     /**
      * Alta; con vendedor, se bloquea su fila y se cuenta su cartera como en una asignación (P4).
