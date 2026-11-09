@@ -13,6 +13,11 @@ use Illuminate\Validation\ValidationException;
 class LoginRequest extends FormRequest
 {
     /**
+     * Mismo mensaje para correo inexistente y contraseña incorrecta (A2-06).
+     */
+    private const MENSAJE_CREDENCIALES = 'Las credenciales no coinciden con nuestros registros.';
+
+    /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
@@ -34,7 +39,24 @@ class LoginRequest extends FormRequest
     }
 
     /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.required' => 'Escriba su correo.',
+            'email.string' => 'Escriba su correo.',
+            'email.email' => 'Escriba un correo válido.',
+            'password.required' => 'Escriba su contraseña.',
+            'password.string' => 'Escriba su contraseña.',
+        ];
+    }
+
+    /**
      * Attempt to authenticate the request's credentials.
+     *
+     * Primero se comprueba la contraseña (DA2-1): solo con la contraseña correcta se dice si la cuenta
+     * está desactivada o es de vendedor, y en esos casos no se inicia sesión (DA2-2).
      *
      * @throws ValidationException
      */
@@ -42,15 +64,27 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        if (! Auth::validate($this->only('email', 'password'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'email' => self::MENSAJE_CREDENCIALES,
             ]);
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        $usuario = Auth::getLastAttempted();
+
+        if ($motivo = $usuario->motivoSinPanel()) {
+            $this->session()->regenerate();
+
+            throw ValidationException::withMessages([
+                'email' => $motivo,
+            ]);
+        }
+
+        Auth::login($usuario, $this->boolean('remember'));
     }
 
     /**
@@ -69,10 +103,7 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
+            'email' => 'Demasiados intentos. Intente de nuevo en '.$seconds.' segundos.',
         ]);
     }
 

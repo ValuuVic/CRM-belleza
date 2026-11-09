@@ -20,6 +20,31 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
+     * Roles que entran al panel; el vendedor usa la SPA (R1).
+     */
+    public const ROLES_PANEL = ['administrador', 'supervisor'];
+
+    public const MENSAJE_DESACTIVADA = 'Su cuenta está desactivada. Comuníquese con el administrador.';
+
+    public const MENSAJE_VENDEDOR = 'Su cuenta es de vendedor. Ingrese desde la aplicación de ventas.';
+
+    /**
+     * Por qué la cuenta no puede usar el panel, o null si puede (A2-04, A2-05, A2-08, A2-09).
+     */
+    public function motivoSinPanel(): ?string
+    {
+        if (! $this->activo) {
+            return self::MENSAJE_DESACTIVADA;
+        }
+
+        if (! in_array($this->rol, self::ROLES_PANEL, true)) {
+            return self::MENSAJE_VENDEDOR;
+        }
+
+        return null;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
