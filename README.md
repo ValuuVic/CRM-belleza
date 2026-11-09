@@ -198,7 +198,7 @@ python -m http.server 5500 --bind 127.0.0.1 --directory frontend
 
 Abra `http://127.0.0.1:5500` (también sirve la extensión Live Server en ese puerto). La SPA llama a la API en `http://127.0.0.1:3000/api` (`URL_API` en `frontend/js/api.js`, permitido por la CSP de `index.html`). Solo los vendedores activos pueden entrar: administradores y supervisores reciben el mensaje del 403 y deben usar el panel.
 
-La vista del resumen mensual (`#/resumen`: mes, ventas, total, pronóstico y cartera) está en `frontend/js/vistas/resumen.js` y `frontend/js/acciones-resumen.js`, con sus pruebas. Se muestra en la SPA cuando está conectada en el enrutador `frontend/js/app.js`; mientras no lo esté, la ruta muestra «Disponible próximamente».
+En «Resumen» (`#/resumen`) el vendedor elige un mes y ve sus ventas, total vendido, pronóstico y cartera, con montos en quetzales; el mes inicial es el mes actual de Guatemala. La vista está en `frontend/js/vistas/resumen.js` y `frontend/js/acciones-resumen.js`.
 
 ### Modo demostración (sin MySQL)
 
