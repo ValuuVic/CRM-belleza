@@ -313,6 +313,90 @@ Integración de punta a punta (notas 1 a 3), como en A3: `crm_belleza_test` reci
 
 ---
 
+## A5 — Equipos, oportunidades y reportes del panel (Parte A)
+
+**Spec:** `docs/specs/A5-equipos-reportes.md` (aprobada con P1 a P5)
+**Rama:** `a/reportes`
+**Fecha:** 2026-11-09
+**Commits:** `a87848d` (aprobación de la spec), `97fa3cf` (servicio `ReporteVentas`), `797d110` (equipo), `6034739` (oportunidades), `94c9b04` (reporte), `8fcab9f` (pruebas)
+**Entorno:** MySQL 8.4 en Docker (`crm-mysql`), PHP 8.4.0, Laravel 13; API Express de la Parte B para la integración.
+
+### Cómo se ejecutó
+
+```
+cd laravel
+php artisan test
+PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
+```
+
+Prueba de punta a punta de CA-16 (nota 1), con `crm_belleza_test` recién sembrada, el panel en el puerto 8999 y la API en el 3999, los dos sobre esa base. **Al terminar se volvió a cargar la semilla oficial**, porque la prueba gana la op. 4 y cambia las cifras:
+
+```
+cd laravel && DB_DATABASE=crm_belleza_test php artisan migrate:fresh --seeder=VerificacionSeeder --force
+```
+
+Después de recargarla, `ReporteVentas` volvió a dar para la empresa en octubre `{"ventas":4,"total":"22450.00","pronostico":"6751.13"}`, y la op. 4 volvió a estar en negociación.
+
+### Resultado
+
+- `php artisan test`: **158 pruebas, 145 superadas, 0 fallidas, 13 omitidas** (las de A1, opt-in), 1025 aserciones. `A5EquiposReportesTest`: 19 de 19, 202 aserciones.
+- `PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, 126 aserciones.
+- **Las pruebas detectan errores reales.** Se introdujeron a propósito dos errores en `ReporteVentas` y se revirtieron con `git checkout`:
+  - Calcular el mes en UTC (`00:00:00` en lugar de `06:00:00`) hizo fallar 10 pruebas, entre ellas A5-01, A5-02, A5-03, A5-13 y A5-18.
+  - Usar `JOIN` en lugar de `LEFT JOIN` en el desglose por vendedor hizo fallar A5-06, A5-13 y A5-18.
+
+### Cifras de control obtenidas en el panel (§13.3)
+
+| Alcance | Mes | Ventas | Total | Pronóstico | Cartera |
+|---|---|---:|---:|---:|---|
+| Valeria | 2026-10 | 2 | Q9,250.00 | Q2,512.88 | 3 de 10 |
+| Valeria | 2026-11 | 1 | Q3,600.00 | Q2,512.88 | 3 de 10 |
+| Diego | 2026-10 | 1 | Q6,000.00 | Q112.50 | 2 de 10 |
+| Carlos | 2026-10 | 1 | Q7,200.00 | Q4,125.75 | 9 de 10 |
+| Iván (inactivo) | 2026-10 | 0 | Q0.00 | Q0.00 | 1 de 10 |
+| Equipo de Sergio | 2026-10 | 3 | Q15,250.00 | Q2,625.38 | — |
+| Equipo de Sandra | 2026-10 | 1 | Q7,200.00 | Q4,125.75 | — |
+| Empresa | 2026-10 | 4 | Q22,450.00 | Q6,751.13 | — |
+
+Por producto en octubre: Plan básico 5 / Q6,000.00 / Q0.00; Plan avanzado 2 / Q5,200.00 / Q6,188.63; Instalación 1 / Q450.00 / Q562.50; Soporte anual 3 / Q10,800.00 / Q0.00.
+
+En noviembre, Diego da 0 / Q0.00 / Q112.50, Carlos 0 / Q0.00 / Q4,125.75 e Iván 0 / Q0.00 / Q0.00 (A5-18). Todas coinciden con §13.3 y con A5 §5.4.
+
+### Matriz de criterios
+
+| Criterio | Prueba | Resultado |
+|---|---|---|
+| A5-01 — Cifras de control por vendedor | `A5EquiposReportesTest::test_a5_01_…` (Valeria octubre y noviembre, Diego, Carlos, Iván y carteras 3, 2, 9 y 1) | Cumple |
+| A5-02 — Equipos y empresa | `A5EquiposReportesTest::test_a5_02_…` | Cumple |
+| A5-03 — Mes de Guatemala en el límite | `A5EquiposReportesTest::test_a5_03_…` («Equipo para sucursal», 2026-11-01 03:30 UTC, en octubre; «Soporte del hogar», 06:30 UTC, en noviembre; 06:00:00 exactas ya es noviembre; 05:59:59 todavía es octubre) | Cumple |
+| A5-04 — Redondeo después de sumar | `A5EquiposReportesTest::test_a5_04_…` (0.125 + 0.125 = 0.25, no 0.26) | Cumple |
+| A5-05 — Precio guardado | `A5EquiposReportesTest::test_a5_05_…` (Plan avanzado a 3000.00 sin cambiar las cifras) | Cumple |
+| A5-06 — Página del equipo | `A5EquiposReportesTest::test_a5_06_…` (Sandra: Carlos e Iván; Sergio: Valeria y Diego; subtotales) | Cumple |
+| A5-07 — El administrador ve todos los equipos | `A5EquiposReportesTest::test_a5_07_…` (con `SectorSeeder`: Sergio, Sandra y Lucía, más el total de la empresa) | Cumple |
+| A5-08 — Mes por omisión e inválido | `A5EquiposReportesTest::test_a5_08_…` (`2026-13`, `26-10`, `octubre`, `2026-1` y `0999-01` en `/equipo` y `/reportes`; mensaje sin 500) | Cumple |
+| A5-09 — Lista con filtros | `A5EquiposReportesTest::test_a5_09_…` (11 oportunidades; op. 2 a las «31/10/2026 21:30»; filtros por etapa, por vendedor y combinados) | Cumple |
+| A5-10 — Alcance del supervisor | `A5EquiposReportesTest::test_a5_10_…` (Sergio ve de la 1 a la 9; `/oportunidades/10` → 404; `?vendedor=6` → lista vacía; Lucía no ve ninguna de la semilla oficial) | Cumple |
+| A5-11 — Detalle de solo lectura | `A5EquiposReportesTest::test_a5_11_…` (líneas a 2600.00 y 450.00, total Q5,650.00, 5 cambios de etapa, sin formularios; PUT, PATCH, DELETE y POST → 405) | Cumple |
+| A5-12 — Etapa inválida | `A5EquiposReportesTest::test_a5_12_…` | Cumple |
+| A5-13 — Reporte de la empresa | `A5EquiposReportesTest::test_a5_13_…` (total, por equipo, por vendedor y por producto) | Cumple |
+| A5-14 — Reporte del supervisor | `A5EquiposReportesTest::test_a5_14_…` (equipo de Sergio; filtro por Valeria; `?vendedor=6` → reporte vacío, P5) | Cumple |
+| A5-15 — Venta compartida | `A5EquiposReportesTest::test_a5_15_…` (op. 4 ganada: 5 / 25200.50 / 4688.25) | Cumple; ver nota 1 |
+| A5-16 — Paridad con el SQL de referencia | `A5EquiposReportesTest::test_a5_16_…` (C1, C2 y C3 de §5.3 con `DB::select`, contra `ReporteVentas`, en 7 alcances × 3 meses) | Cumple |
+| A5-17 — Texto escapado y montos sin float | `A5EquiposReportesTest::test_a5_17_…` (producto, cliente y título con HTML en la lista, el detalle y el reporte; `Quetzales` sobre el texto DECIMAL) | Cumple |
+| A5-18 — Vendedores sin ventas en el mes | `A5EquiposReportesTest::test_a5_18_…` (reporte de noviembre, Iván en octubre y equipo de Sandra en noviembre) | Cumple |
+
+**Nota 1 (A5-15, CA-16 de punta a punta).**
+- **Antes**, el reporte del panel mostraba:
+  - 2026-10: empresa 4 / Q22,450.00 / Q6,751.13; Valeria 2 / Q9,250.00 / Q2,512.88.
+  - 2026-11: empresa 1 / Q3,600.00 / Q6,751.13; Valeria 1 / Q3,600.00 / Q2,512.88.
+- **La venta:** Valeria ganó la op. 4, «Ampliación a bodega» (Plan avanzado × 1 a 2750.50), con `PATCH /api/oportunidades/4/etapa`. La API respondió `ganada` con `fecha_cierre` `2026-11-09T08:00:35.000Z`, que es noviembre en hora de Guatemala.
+- **Después**, el reporte del panel mostró:
+  - 2026-11: empresa 2 / Q6,350.50 / Q4,688.25; Valeria 2 / Q6,350.50 / Q450.00.
+  - 2026-10: las ventas no cambian (4 / Q22,450.00) y el pronóstico, que no depende del mes, baja a Q4,688.25.
+- **Al terminar** se volvió a cargar `VerificacionSeeder` en `crm_belleza_test`.
+
+---
+
 ## Bitácora de IA
 
 Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-15). Se trasladan o enlazan aquí antes de la entrega.
