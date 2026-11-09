@@ -541,4 +541,32 @@ Al terminar, `crm_belleza_test` se volvió a cargar con `VerificacionSeeder`.
 
 ## Bitácora de IA
 
-Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-15). Se trasladan o enlazan aquí antes de la entrega.
+La bitácora completa está en [`docs/bitacora-ia.md`](bitacora-ia.md), con **16 casos reales (IA-01 a IA-16)** en los que el agente (Claude Code) propuso algo incorrecto, inseguro o distinto de la especificación. Para cada caso se registra lo que pide el enunciado (P5 y §17 de la especificación):
+- qué propuso el agente;
+- por qué era incorrecto;
+- cómo se detectó;
+- qué corrección se hizo;
+- el commit de la corrección.
+
+Solo se registran incidentes que ocurrieron y se verificaron; no hay casos ni resultados inventados.
+
+| Caso | Fecha | Parte | Área | Estado | Commit de la corrección |
+|---|---|---|---|---|---|
+| IA-01 | 2026-11-07 | B | Hooks · `vigilar-bash.mjs` | Corregido | `2312f37` |
+| IA-02 | 2026-11-07 | B | Hooks · `proteger-archivos.mjs` / `comun.mjs` | Corregido | `2312f37` |
+| IA-03 | 2026-11-07 | B | Hooks · `revisar-cambio.mjs` / `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
+| IA-04 | 2026-11-07 | B | Hooks · `pruebas-al-terminar.mjs` | Corregido | `2312f37` |
+| IA-05 | 2026-11-07 | B | Pruebas de los hooks | Corregido | `2312f37` |
+| IA-06 | 2026-11-08 | B | B1 · `api/src/server.js` | Corregido | `f800096` |
+| IA-07 | 2026-11-08 | B | Hooks · `vigilar-bash.mjs` | Corregido | `a35f8fa` |
+| IA-08 | 2026-11-08 | B | Hooks · `revisar-cambio.mjs` | Corregido | `a7c202c` |
+| IA-09 | 2026-11-08 | B | B2 · `api/src/rutas/auth.js` y SPA | Corregido | `baead7e` (API) y `8632b90` (SPA) |
+| IA-10 | 2026-11-08 | B | B3 · plan y `api/test/ayuda/bd-simulada.js` | Corregido | `7b34af9` |
+| IA-11 | 2026-11-08 | B | B4 · rutas, pruebas de concurrencia y SPA de oportunidades | Corregido | `ff34248` |
+| IA-12 | 2026-11-08 | B | `docs/especificacion.md` y `api/test/integracion-b3.test.js` (lectura del enunciado) | Corregido | `ff34248` |
+| IA-13 | 2026-11-08 | B | B5 · actividades (API, simulación y SPA) | Corregido | `2865d43` (API) y `a9f8bd4` (SPA) |
+| IA-14 | 2026-11-08 | B | B6 · SPA a 375 px, sesión, Postman, script de concurrencia y pruebas | Corregido | Sin commit propio registrado |
+| IA-15 | 2026-11-08 | A | A1 · migraciones y pruebas de Laravel (`phpunit.xml`) | Corregido en A2 | `8e0cb10`, `150bedf` |
+| IA-16 | 2026-11-09 | A | A4 · asignación de clientes (DA4-7), vista de edición y pruebas | Corregido | `949ba19`, `feb57ba`, `fa24466` |
+
+15 de los 16 casos tienen su commit de corrección, más de los tres que pide P5 como mínimo. IA-14 se corrigió, pero en la bitácora su commit figura como «Pendiente (sin commit)»; si la Parte B lo identifica, se completa en las dos tablas.
