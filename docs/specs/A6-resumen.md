@@ -3,7 +3,7 @@
 **Proyecto:** CRM Belleza  
 **Responsable:** Parte A  
 **Rama:** `a/resumen`  
-**Estado:** Propuesta (decisiones DA6-1 a DA6-6; preguntas abiertas P1 y P2)  
+**Estado:** Aprobada (decisiones DA6-1 a DA6-6, P1 y P2)  
 **Referencia:** `docs/especificacion.md` (`spec-v1.1`) A6, F5, §8.5, §8.6, §8.7, R7, R8, D6, CA-12, criterios del núcleo A6-01, A6-02 y F5-01; `docs/plan.md` A6  
 **Dependencias:**
 - **Cifras:** se reutiliza **sin cambios** la definición de cifras de `docs/specs/A5-equipos-reportes.md` §5: el rango del mes (§5.1), la probabilidad (§5.2), C1 a C4 (§5.3) y las cifras de control (§5.4).
@@ -17,10 +17,11 @@ Implementar `GET /api/reportes/resumen` según el contrato §8.5 y la vista `#/r
 
 ### Funcionalidades incluidas
 
-- `api/src/rutas/reportes.js`: `crearRutasReportes({ pool })` con `GET /resumen`. Calcula C1 a C4 de A5 §5.3 con el alcance de vendedor, el del token, en **una sola sentencia SQL** parametrizada.
+- `api/src/servicios/reportes.js`: rango del mes de Guatemala y C1 a C4 de A5 §5.3 con el alcance de vendedor, el del token, en **una sola sentencia SQL** parametrizada. El `CASE` de probabilidad se arma con `PROBABILIDAD` de `embudo.js`.
+- `api/src/rutas/reportes.js`: `crearRutasReportes({ pool })` con `GET /resumen`, que usa el servicio.
 - Montaje en `api/src/app.js`: `app.use('/api/reportes', crearRutasReportes({ pool }))`, en el lugar reservado (P2).
-- `frontend/js/vistas/resumen.js` (`renderResumen`) y `frontend/js/acciones-resumen.js` (`cargarResumen`, `cambiarMes`), con selector de mes, estados de carga, error y reintento, y montos en quetzales.
-- Pruebas `node:test`: `api/test/reportes.test.js` y `frontend/test/resumen.test.js`.
+- `frontend/js/vistas/resumen.js` (`renderResumen`) y `frontend/js/acciones-resumen.js` (`entrarResumen`, `cambiarMes`, `reintentar`), con selector de mes, estados de carga, error y reintento, y montos en quetzales. Usan `pedir()` de `api.js` y `actualizar()` de `estado.js` sin modificarlos.
+- Pruebas `node:test`: `api/test/reportes-a6.test.js`, `api/test/integracion-a6.test.js` y `frontend/test/resumen-a6.test.js`.
 
 ### Fuera del alcance
 
@@ -36,7 +37,7 @@ Implementar `GET /api/reportes/resumen` según el contrato §8.5 y la vista `#/r
 - Los errores siguen §8.7: `{ "error": "…" }` en 400 y 401, y los 500 no revelan detalles.
 - SPA: patrón estado → render, delegación de eventos, `escaparHtml` y `formatearQuetzales`. El mes por omisión y la etiqueta del mes se calculan con `Intl.DateTimeFormat` y `America/Guatemala`, sin depender de la zona de la computadora.
 
-## 4. Decisiones de esta fase (propuestas)
+## 4. Decisiones de esta fase
 
 | Id | Decisión | Alternativa descartada | Motivo |
 |---|---|---|---|
@@ -125,28 +126,29 @@ Los criterios A6-01 y A6-02 son los del núcleo, con el mismo número.
 
 **Dada** cualquier respuesta, **cuando** se dibuja la vista, **entonces** el texto pasa por `escaparHtml`. El enlace «Resumen» de la navegación marca la ruta activa, y la vista se ve sin desplazamiento horizontal a 375 px (CA-14).
 
-## 7. Preguntas abiertas
+## 7. Decisiones sobre las preguntas abiertas
 
-| Id | Pregunta | Recomendación | Criterio |
+Aprobadas por la Parte A el 2026-11-09, junto con DA6-1 a DA6-6.
+
+| Id | Pregunta | Decisión | Criterio |
 |---|---|---|---|
-| P1 | La paridad entre panel y API: ¿basta con que las dos pruebas usen la misma tabla de referencia (A5 §5.4), o se agrega una prueba de punta a punta que compare la API con el panel en vivo? | Las dos cosas: las pruebas automáticas con la tabla, más una comprobación de punta a punta registrada en `docs/verificacion.md` | A6-07 |
-| P2 | Hay archivos de la Parte B que deben cambiar para integrar A6: una línea en `api/src/app.js` (montar `/api/reportes`) y, en la SPA, `frontend/js/app.js` (render y carga de `#/resumen`, eventos del selector), `estado.js` (`resumenInicial()`) y `api.js` (`obtenerResumen(mes)`). ¿Los cambia la Parte A con autorización de la Parte B, o los hace la Parte B? | La Parte A ya los cambio, con la autorización explícita de la Parte B y en commits separados que tocan solo esas líneas | A6-09 a A6-12 |
+| P1 | La paridad entre panel y API: ¿basta con que las dos pruebas usen la misma tabla de referencia (A5 §5.4), o se agrega una prueba de punta a punta que compare la API con el panel en vivo? | Las dos cosas: las pruebas automáticas con la tabla, más una comprobación de punta a punta registrada en `docs/verificacion.md` (después de la cual se vuelve a cargar `VerificacionSeeder`) | A6-07 |
+| P2 | Hay archivos de la Parte B que deben cambiar para integrar A6: una línea en `api/src/app.js` (montar `/api/reportes`) y, en la SPA, `frontend/js/app.js` (render y carga de `#/resumen`, eventos del selector), `estado.js` (`resumenInicial()`) y `api.js` (`obtenerResumen(mes)`). ¿Los cambia la Parte A con autorización de la Parte B, o los hace la Parte B? | La Parte A solo agrega, con la autorización de la Parte B y en un commit aparte, la línea que monta `/api/reportes` en `api/src/app.js` (y su `import`). **No** se modifican `frontend/js/estado.js` ni `frontend/js/api.js`: `acciones-resumen.js` usa `pedir()` y `actualizar()` tal como están, y guarda su propio estado en la clave `resumen`. Como `cerrarSesion()` no limpia esa clave, el estado guarda el token con los datos y la vista solo dibuja datos de la sesión actual (S4). **La Parte B integra `frontend/js/app.js`** con el fragmento que entrega la Parte A: el `import`, el `case '#/resumen'`, la carga al entrar a la ruta, el reintento y el evento del selector | A6-09 a A6-12 |
 
 ## 8. Archivos previstos
 
-- Crear (reservados a la Parte A):
-  - `api/src/rutas/reportes.js`;
-  - `frontend/js/vistas/resumen.js`;
-  - `frontend/js/acciones-resumen.js`;
-  - `api/test/reportes.test.js`;
-  - `frontend/test/resumen.test.js`.
-- Editar, según P2: `api/src/app.js` (una línea), `frontend/js/app.js`, `frontend/js/estado.js` y `frontend/js/api.js`.
+- Crear (reservados a la Parte A; autorizados en `.claude/hooks/comun.mjs`):
+  - `api/src/servicios/reportes.js` y `api/src/rutas/reportes.js`;
+  - `frontend/js/vistas/resumen.js` y `frontend/js/acciones-resumen.js`;
+  - `api/test/reportes-a6.test.js`, `api/test/integracion-a6.test.js` y `frontend/test/resumen-a6.test.js`.
+- Editar (P2): solo `api/src/app.js`, con el `import` y la línea que monta `/api/reportes`.
+- Integra la Parte B: `frontend/js/app.js`, con el fragmento que entrega la Parte A.
 
 ## 9. Estrategia de pruebas
 
 - **API (`node:test`):**
   - Pruebas unitarias del mes (DA6-1, DA6-2) con el reloj fijado.
-  - Pruebas de integración contra `crm_belleza_test` con `npm run test:bd`, para A6-01 a A6-07.
+  - Pruebas de integración con `npm run test:bd`, para A6-01 a A6-07. Son de solo lectura, salvo A6-06 (gana la op. 4), que solo corre con `DB_NAME=crm_belleza_test` y restaura la op. 4 al terminar. A6-05 usa a Iván, que ya está desactivado, sin cambiar datos.
   - A6-08 con el `pool` inyectado que falla, como en las pruebas de la Parte B.
 - **SPA (`node:test`):** render y acciones con `TZ` distinta (A6-09, A6-10) y respuestas simuladas para carga, error, 401 y respuesta vieja (A6-11).
 - **De punta a punta:** el panel, la API y la SPA sobre `crm_belleza_test`; ganar la op. 4 y comparar el panel (A5-15) con la API (A6-06). Las cifras se registran en `docs/verificacion.md`.
@@ -155,6 +157,6 @@ Los criterios A6-01 y A6-02 son los del núcleo, con el mismo número.
 
 A6 se considerará terminada cuando:
 
-- Se cumplan A6-01 a A6-12, con P1 y P2 decididas y la autorización de la Parte B para los archivos compartidos.
+- Se cumplan A6-01 a A6-12; A6-09 a A6-12 en la SPA, cuando la Parte B haya integrado el fragmento en `frontend/js/app.js`.
 - Las cifras de A5 §5.4 coincidan en el panel, la API y la SPA.
 - `npm test` y `npm run test:bd` de `api/`, y `node --test frontend/test/*.test.js`, pasen sin fallos, con los resultados registrados.
