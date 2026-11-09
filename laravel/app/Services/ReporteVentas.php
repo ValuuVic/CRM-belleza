@@ -36,6 +36,11 @@ class ReporteVentas
     private const PRONOSTICO = 'ROUND(COALESCE(SUM(l.cantidad * l.precio_unitario * '.self::PROBABILIDAD.' / 100), 0), 2)';
 
     /**
+     * Total de una oportunidad (R6): suma de sus líneas con el precio guardado, redondeada después de sumar.
+     */
+    private const TOTAL_OPORTUNIDAD = '(SELECT '.self::TOTAL.' FROM oportunidad_productos l WHERE l.oportunidad_id = oportunidades.id)';
+
+    /**
      * Mes actual en hora de Guatemala, «AAAA-MM».
      */
     public function mesActual(): string
@@ -89,6 +94,19 @@ class ReporteVentas
             'pronostico' => (string) $this->conLineas($this->abiertas($alcance))
                 ->selectRaw(self::PRONOSTICO.' AS pronostico')->value('pronostico'),
         ];
+    }
+
+    /**
+     * Agrega la columna «total» (texto DECIMAL) a una consulta de oportunidades (L6-01).
+     *
+     * @template T of \Illuminate\Database\Eloquent\Builder|Builder
+     *
+     * @param  T  $oportunidades
+     * @return T
+     */
+    public function conTotal($oportunidades)
+    {
+        return $oportunidades->selectRaw(self::TOTAL_OPORTUNIDAD.' AS total');
     }
 
     /**

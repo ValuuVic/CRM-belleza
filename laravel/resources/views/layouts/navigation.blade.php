@@ -29,6 +29,9 @@
                     <x-nav-link :href="route('equipo.index')" :active="request()->routeIs('equipo.*')">
                         Equipo
                     </x-nav-link>
+                    <x-nav-link :href="route('oportunidades.index')" :active="request()->routeIs('oportunidades.*')">
+                        Oportunidades
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -97,6 +100,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('equipo.index')" :active="request()->routeIs('equipo.*')">
                 Equipo
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('oportunidades.index')" :active="request()->routeIs('oportunidades.*')">
+                Oportunidades
             </x-responsive-nav-link>
         </div>
 
