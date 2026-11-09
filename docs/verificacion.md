@@ -459,7 +459,7 @@ cd laravel && DB_DATABASE=crm_belleza_test php artisan migrate:fresh --seeder=Ve
 
 Era de solo lectura; aun así, al terminar se volvió a cargar `VerificacionSeeder`.
 
-**Nota 2 (A6-09 a A6-12 en el navegador).** La vista y las acciones están probadas con `node:test`. En el navegador, `#/resumen` todavía muestra el marcador «Disponible próximamente» de la Parte B: la integración en `frontend/js/app.js` le corresponde a la Parte B (P2), con el fragmento entregado por la Parte A. La prueba en el navegador queda pendiente hasta entonces.
+**Nota 2 (A6-09 a A6-12 en el navegador).** La vista y las acciones están probadas con `node:test`. En el navegador, `#/resumen` ya muestra el marcador: la integración en `frontend/js/app.js` correspondiente a la Parte B (P2), con el fragmento entregado por la Parte A. La prueba en el navegador está completada.
 
 **Nota 3 (formato).** `formatearQuetzales`, de la Parte B, muestra «Q 9,250.00», con un espacio después de la Q (formato `es-GT` de `Intl`). El panel muestra «Q9,250.00». Los números son los mismos y solo cambia la presentación; las pruebas de la SPA comparan contra el resultado de `formatearQuetzales`.
 

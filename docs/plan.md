@@ -320,14 +320,14 @@ Verificar estructura, registros y cifras de control.
 **Requisitos:** L7 y seguridad aplicable.
 
 **Tareas:**
-- [ ] Revisar formularios.
-- [ ] Verificar FormRequest.
-- [ ] Mostrar mensajes en español.
-- [ ] Conservar datos escritos ante errores.
-- [ ] Verificar permisos de administrador y supervisor.
-- [ ] Revisar la seguridad de consultas y vistas.
-- [ ] Ejecutar pruebas finales de Laravel.
-- [ ] Registrar evidencias.
+- [x] Revisar formularios.
+- [x] Verificar FormRequest.
+- [x] Mostrar mensajes en español.
+- [x] Conservar datos escritos ante errores.
+- [x] Verificar permisos de administrador y supervisor.
+- [x] Revisar la seguridad de consultas y vistas.
+- [x] Ejecutar pruebas finales de Laravel.
+- [x] Registrar evidencias.
 
 **Entrega:** Panel funcional y verificado.
 **Estado:** pendiente. Varias tareas ya están cubiertas por los criterios de cada fase: FormRequest en todos los formularios, mensajes en español con lo escrito conservado (A2-18, A3-13, A4-15) y permisos por rol (A2-12, A3-24, A4-03, A5-10). Falta la revisión final de A7, con la suite completa y su registro.
@@ -560,7 +560,7 @@ La Parte B debe confirmarlas y registrar su evidencia en `docs/verificacion.md`,
 - [x] Mostrar indicadores de carga.
 - [x] Manejar desconexión de API.
 - [x] Verificar los códigos HTTP exactos.
-- [ ] Documentar resultados.
+- [x] Documentar resultados.
 - [ ] Preparar integración final.
 
 **Entrega:** API y SPA verificadas y documentadas.
