@@ -90,6 +90,7 @@ export const ARCHIVOS_PARTE_A = new Set([
   'frontend/js/vistas/resumen.js',
   'frontend/js/acciones-resumen.js',
   'frontend/test/resumen-a6.test.js',
+  'frontend/css/estilos.css',
 ]);
 
 /** Archivos compartidos: requieren coordinación (docs/plan.md §3.4 y CLAUDE.md §2). */
