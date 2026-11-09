@@ -5,8 +5,10 @@
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                    {{-- Ícono de LUMINA Beauty (docs/pictures/logo2.png, reducido a 128 px en public/images). --}}
+                    <a href="{{ route('dashboard') }}" class="flex items-center gap-2">
+                        <img src="{{ asset('images/lumina-icono.png') }}" alt="" class="block h-10 w-10 object-contain">
+                        <span class="font-semibold text-crm-texto whitespace-nowrap">{{ config('app.name') }}</span>
                     </a>
                 </div>
 

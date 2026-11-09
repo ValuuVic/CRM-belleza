@@ -13,7 +13,8 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    // Marca de la aplicación: título de las páginas del panel. Es fija; no depende de APP_NAME del .env.
+    'name' => 'LUMINA Beauty',
 
     /*
     |--------------------------------------------------------------------------
