@@ -84,7 +84,12 @@ export function esArchivoEnv(rel) {
  */
 export const ARCHIVOS_PARTE_A = new Set([
   'api/src/rutas/reportes.js',
+  'api/src/servicios/reportes.js',
+  'api/test/reportes-a6.test.js',
+  'api/test/integracion-a6.test.js',
   'frontend/js/vistas/resumen.js',
+  'frontend/js/acciones-resumen.js',
+  'frontend/test/resumen-a6.test.js',
 ]);
 
 /** Archivos compartidos: requieren coordinación (docs/plan.md §3.4 y CLAUDE.md §2). */
