@@ -232,6 +232,87 @@ Las peticiones se hicieron con `curl` (sesión de Alicia en el panel y token de 
 
 ---
 
+## A4 — Clientes y asignaciones (Parte A)
+
+**Spec:** `docs/specs/A4-clientes.md` (D2–D4 decididos en `docs/especificacion.md`, `spec-v1.1`)
+**Rama:** `a/clientes`
+**Fecha:** 2026-11-09
+**Commits:** `09a63c9` y `25c299f` (spec), `ac992a8` (NIT y teléfono), `685be44` (visibilidad y servicio de asignación), `75c825f` (controladores, validación y rutas), `949ba19` (corrección DA4-7), `5c548fd` (vistas y navegación), `feb57ba` (corrección de la vista de edición), `4af35b3` (mensaje de D3), `fa24466` (pruebas)
+**Entorno:** MySQL 8.4 en Docker (`crm-mysql`), PHP 8.4.0, Laravel 13; API Express de la Parte B para la integración.
+
+### Cómo se ejecutó
+
+```
+cd laravel
+php artisan test
+PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
+```
+
+Integración de punta a punta (notas 1 a 3), como en A3: `crm_belleza_test` recién sembrada con `VerificacionSeeder`, el panel en el puerto 8999 y la API en el 3999, los dos sobre esa base; peticiones con `curl` (sesión de Alicia en el panel y tokens de Valeria, Diego y Carlos en la API). Al terminar se volvió a sembrar `crm_belleza_test`.
+
+### Resultado
+
+- `php artisan test`: **139 pruebas, 126 superadas, 0 fallidas, 13 omitidas** (las de A1, opt-in), 823 aserciones. `A4ClientesTest`: 29 de 29, 250 aserciones; `NitTest` y `TelefonoTest`: 16 de 16, 55 aserciones.
+- `PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, 126 aserciones, sobre `crm_belleza_test`.
+- `crm_belleza` no se escribió durante A4: su última escritura (`information_schema.tables.UPDATE_TIME`) es de 2026-11-09 05:45:46 UTC, anterior a la fase, cuando se cargó con `VerificacionSeeder` y `SectorSeeder`.
+
+### Matriz de criterios
+
+| Criterio | Prueba | Resultado |
+|---|---|---|
+| A4-01 — El administrador ve todos | `A4ClientesTest::test_a4_01_…` (21 clientes; 33 con `SectorSeeder`; NIT NULL como «CF») | Cumple |
+| A4-02 — El supervisor ve su equipo y los disponibles | `A4ClientesTest::test_a4_02_…` (Sergio: 1-5 y 16-21, más los 3 disponibles del sector; Sandra: 6-21; NIT y teléfono de los disponibles, P3) | Cumple |
+| A4-03 — Cliente de otro equipo: 404 | `A4ClientesTest::test_a4_03_…` (Sergio → cliente 6 en GET, PUT, asignar y liberar; Sergio → Salón Belleza Divina; Lucía → cliente 1) | Cumple |
+| A4-04 — Sin sesión y cliente inexistente | `A4ClientesTest::test_a4_04_…` | Cumple |
+| A4-05 — Búsqueda por nombre o NIT | `A4ClientesTest::test_a4_05_…` («quetzal», «4521817-k», «452 1817K», «ferreteria» sin acento; `%` y `_` como texto; 101 caracteres rechazados) | Cumple |
+| A4-06 — Filtros por vendedor y «Sin asignar» | `A4ClientesTest::test_a4_06_…` (Carlos 9, sin asignar 6, combinado con `q`; Sergio con `?vendedor=6` → vacío; filtros en los enlaces de página) | Cumple |
+| A4-07 — Cartera y vendedor inactivo | `A4ClientesTest::test_a4_07_…` («Carlos Ajú · 9 de 10», «Valeria López · 3 de 10», Hotel Los Pinos con «(vendedor inactivo)») | Cumple |
+| A4-08 — Mismas reglas que la API | `A4ClientesTest::test_a4_08_…` (`0-450` → `450`, `+502 4444-1234` → `44441234`, varios CF) | Cumple |
+| A4-09 — Traducción literal de la API | `NitTest` (10 pruebas) y `TelefonoTest` (6 pruebas): los casos de B1-06 y B1-07 de `api/test/validaciones.test.js`, con los mismos nombres | Cumple; ver nota 4 |
+| A4-10 — NIT o teléfono inválido | `A4ClientesTest::test_a4_10_…` | Cumple |
+| A4-11 — NIT o teléfono repetido | `A4ClientesTest::test_a4_11_…` (alta y edición; el propio NIT y teléfono se aceptan) | Cumple |
+| A4-12 — El índice único decide el duplicado | `A4ClientesTest::test_a4_12_…` (2 pruebas: NIT al crear y teléfono al editar; el 1062 va al campo de su índice) | Cumple; ver nota 5 |
+| A4-13 — Nombre y correo | `A4ClientesTest::test_a4_13_…` (vacío, espacios, 151; correo inválido y de 151; 150 caracteres «ñ» aceptados) | Cumple |
+| A4-14 — El supervisor crea y edita en su alcance | `A4ClientesTest::test_a4_14_…` (disponible, de Valeria; de Carlos rechazado; edita el 1 y el 16) | Cumple |
+| A4-15 — Mensajes, datos conservados y campos ignorados | `A4ClientesTest::test_a4_15_…` (`vendedor_id`, `id` y `created_at` ignorados al editar) | Cumple |
+| A4-16 — Texto escapado | `A4ClientesTest::test_a4_16_…` (lista y edición, con 200) | Cumple |
+| A4-17 — Asignar un cliente disponible | `A4ClientesTest::test_a4_17_…` | Cumple; ver nota 1 |
+| A4-18 — Cartera llena | `A4ClientesTest::test_a4_18_…` (Carlos 10 de 10; asignar y reasignar rechazados con «La cartera de Carlos Ajú está llena (10 de 10)…») | Cumple |
+| A4-19 — Solo vendedores activos; el supervisor en su equipo | `A4ClientesTest::test_a4_19_…` (Sandra → Iván; Sergio → Carlos; Alicia → Iván, supervisor y 999) | Cumple |
+| A4-20 — Reasignar (D2) | `A4ClientesTest::test_a4_20_…` (op. 4 y 7 → Diego, op. 1 con Valeria, actividad 1 sin tocar; Valeria 2 / 9250.00 / 450.00, Diego 1 / 6000.00 / 2175.38) | Cumple; ver nota 1 |
+| A4-21 — Liberar (D3) | `A4ClientesTest::test_a4_21_…` (cliente 1 rechazado con el texto de D3; cliente 3 liberado, op. 3 y 6 con Valeria) | Cumple |
+| A4-22 — Vendedor desactivado (D4) | `A4ClientesTest::test_a4_22_…` (Hotel Los Pinos a Carlos; una oportunidad abierta de Iván, creada en la prueba, pasa a Carlos) | Cumple |
+| A4-23 — Solo el administrador elimina y sin oportunidades | `A4ClientesTest::test_a4_23_…` (supervisores 403; cliente 7 eliminado, Carlos 8; cliente 1 rechazado) | Cumple |
+| A4-24 — Actividades en cascada | `A4ClientesTest::test_a4_24_…` | Cumple |
+| A4-25 — 1451 sin 500 | `A4ClientesTest::test_a4_25_…` | Cumple; ver nota 5 |
+| A4-26 — Orden de bloqueos | `A4ClientesTest::test_a4_26_…` (inicio de transacción → `users` 4 y 5 `ORDER BY id FOR UPDATE` → `clientes FOR UPDATE` → conteo de cartera → `oportunidades FOR UPDATE` → `UPDATE`) | Cumple; ver nota 3 |
+| A4-27 — El cliente cambió mientras se trabajaba | `A4ClientesTest::test_a4_27_…` (asignar un disponible ya tomado y liberar un cliente cuyo dueño cambió) | Cumple; ver nota 2 |
+| A4-28 — Cartera bajo concurrencia | `A4ClientesTest::test_a4_28_…` (alta con vendedor y asignación con la cartera contada bajo bloqueo) | Cumple; ver nota 3 |
+| A4-29 — Suite y semilla intactas | `A4ClientesTest::test_a4_29_…` y la suite completa sin errores | Cumple |
+
+**Nota 1 (A4-17, A4-20, integración con la API).** De punta a punta:
+- Alicia asignó Agencia Cuatro Caminos (16) a Valeria en el panel, y `GET /api/clientes` de Valeria pasó a devolver [1, 2, 3, 16].
+- Después reasignó Comercial El Quetzal (1) de Valeria a Diego. Resultado en la API:
+  - `GET /api/clientes` de Diego: [1, 4, 5].
+  - `GET /api/actividades` de Diego: [1, 4]. La actividad 1 aparece sin haberla tocado, porque sigue al cliente.
+  - `GET /api/oportunidades` de Diego: [4, 7, 8, 9].
+  - `GET /api/oportunidades` de Valeria: [1, 2, 3, 5, 6]. La 1, ganada, se queda con ella.
+
+**Nota 2 (A4-27 de punta a punta).** Alicia abrió Café Zunil (17), que estaba disponible; el formulario mostraba `vendedor_actual` vacío. Valeria lo tomó con `POST /api/clientes/17/tomar`, que respondió 200. Cuando Alicia lo asignó a Diego, el panel respondió «El cliente cambió mientras usted trabajaba. Recargue la página e inténtelo de nuevo.», y el cliente siguió en la cartera de Valeria.
+
+**Nota 3 (A4-26, A4-28, concurrencia).** PHPUnit no lanza peticiones simultáneas. La concurrencia se comprobó de punta a punta, con Carlos en 9 de 10:
+- **Panel contra API, 11 rondas.** En cada ronda, el panel le asignaba un disponible a Carlos y la API, a la vez, le daba de alta otro cliente (`POST /api/clientes`).
+  - En 5 rondas sin retraso, la API llegó primero: respondió 201 y el panel rechazó la asignación por cartera llena.
+  - En 6 rondas, la API salió con un retraso de 0.1 a 1.0 s: el panel asignó y la API respondió 409, «Su cartera ya tiene el máximo de 10 clientes».
+  - En ninguna ronda Carlos pasó de 10.
+- **El panel espera el bloqueo del vendedor.** Desde otra conexión de MySQL se mantuvo `SELECT id FROM users WHERE id = 6 FOR UPDATE` durante 3 s. Mientras tanto, la asignación del panel a Carlos tardó 2.63 s; sin el bloqueo tarda entre 0.11 y 0.13 s.
+
+**Nota 4 (A4-09).** Los casos de JavaScript que pasan `undefined` y `{}` se tradujeron como `null` y `new stdClass`, porque PHP no tiene `undefined`. Los demás valores son idénticos.
+
+**Nota 5 (A4-12, A4-25).** La carrera se simula con un evento del modelo (`creating`, `updating` o `deleting`) que inserta, justo antes del guardado, el duplicado o la oportunidad. MySQL responde 1062 o 1451 y el panel vuelve con el mensaje junto al campo, sin 500.
+
+---
+
 ## Bitácora de IA
 
 Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-15). Se trasladan o enlazan aquí antes de la entrega.
