@@ -3,7 +3,7 @@
 **Proyecto:** CRM Belleza  
 **Responsable:** Parte A  
 **Rama:** `a/clientes`  
-**Estado:** Aprobada (decisiones DA4-1 a DA4-9, P1 a P4); D2–D4 decididos en `docs/especificacion.md` (`spec-v1.1`)  
+**Estado:** Aprobada (decisiones DA4-1 a DA4-9, P1 a P4); D2–D4 decididos en `docs/especificacion.md` (`spec-v1.2`)  
 **Referencia:** `docs/especificacion.md` (`spec-v1`) §3.1, §3.2, §4.3, §4.8, §4.9, R2, R3, R4, L4, L5, L7, S5, S7, S8, D2, D3, D4, D16, D17; `docs/plan.md` A4  
 **Dependencias:** A1 (tablas y semillas), A2 (middlewares `cuenta.vigente` y `rol`, base `crm_belleza_test`). Reglas de la API (solo lectura): `api/src/utils/validaciones.js`, `api/src/servicios/vendedores.js`, `api/src/rutas/clientes.js`.
 
@@ -230,7 +230,7 @@ Aprobadas por la Parte A el 2026-11-09, junto con DA4-1 a DA4-9.
 
 | Id | Pregunta | Decisión | Criterio |
 |---|---|---|---|
-| P1 | ¿Se adoptan D2, D3 y D4 (§14, en estado «Propuesta»)? | Sí, con estos detalles. Al reasignar se mueven solo las oportunidades abiertas; las cerradas conservan su vendedor y las actividades no se tocan, porque siguen al cliente. Liberar con oportunidades abiertas se rechaza. Los clientes de un vendedor desactivado se quedan con él hasta reasignarlos a mano. D2–D4 quedaron como «Decidida» en `docs/especificacion.md` (commit `5afb464`, etiqueta `spec-v1.1`), que además fija el mensaje de D3 | A4-20, A4-21, A4-22 |
+| P1 | ¿Se adoptan D2, D3 y D4 (§14, en estado «Propuesta»)? | Sí, con estos detalles. Al reasignar se mueven solo las oportunidades abiertas; las cerradas conservan su vendedor y las actividades no se tocan, porque siguen al cliente. Liberar con oportunidades abiertas se rechaza. Los clientes de un vendedor desactivado se quedan con él hasta reasignarlos a mano. `spec-v1.1` (commit `5afb464`) fijó el mensaje de D3, pero dejó D2–D4 con «Estado: Propuesta»; su redacción final como decididas, con las actividades que siguen al cliente en D2, está en `spec-v1.2` | A4-20, A4-21, A4-22 |
 | P2 | ¿El supervisor puede editar los datos de un cliente disponible? | Sí: §3.2 le permite crearlos y asignarlos, y R2 dice que los ve | A4-14 |
 | P3 | ¿El supervisor ve el NIT, el teléfono y el correo de los disponibles? | Sí: la restricción de R3 a `id` y `nombre` es solo para la lista de disponibles de la API para vendedores | A4-02 |
 | P4 | ¿Al crear un cliente se puede elegir el vendedor? | Sí, es opcional: si se deja vacío, nace disponible. El supervisor solo puede elegir uno de su equipo, y el alta bloquea al vendedor y cuenta su cartera como una asignación | A4-08, A4-14, A4-18 |

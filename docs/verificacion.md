@@ -234,7 +234,7 @@ Las peticiones se hicieron con `curl` (sesión de Alicia en el panel y token de 
 
 ## A4 — Clientes y asignaciones (Parte A)
 
-**Spec:** `docs/specs/A4-clientes.md` (D2–D4 decididos en `docs/especificacion.md`, `spec-v1.1`)
+**Spec:** `docs/specs/A4-clientes.md` (D2–D4 decididos en `docs/especificacion.md`, `spec-v1.2`)
 **Rama:** `a/clientes`
 **Fecha:** 2026-11-09
 **Commits:** `09a63c9` y `25c299f` (spec), `ac992a8` (NIT y teléfono), `685be44` (visibilidad y servicio de asignación), `75c825f` (controladores, validación y rutas), `949ba19` (corrección DA4-7), `5c548fd` (vistas y navegación), `feb57ba` (corrección de la vista de edición), `4af35b3` (mensaje de D3), `fa24466` (pruebas)
