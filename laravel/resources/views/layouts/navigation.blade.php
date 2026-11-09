@@ -23,6 +23,9 @@
                     <x-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')">
                         Productos
                     </x-nav-link>
+                    <x-nav-link :href="route('clientes.index')" :active="request()->routeIs('clientes.*')">
+                        Clientes
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -85,6 +88,9 @@
             @endif
             <x-responsive-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')">
                 Productos
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('clientes.index')" :active="request()->routeIs('clientes.*')">
+                Clientes
             </x-responsive-nav-link>
         </div>
 
