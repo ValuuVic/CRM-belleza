@@ -397,6 +397,74 @@ En noviembre, Diego da 0 / Q0.00 / Q112.50, Carlos 0 / Q0.00 / Q4,125.75 e Iván
 
 ---
 
+## A6 — Resumen mensual para la API y la SPA (Parte A)
+
+**Spec:** `docs/specs/A6-resumen.md` (aprobada con P1 y P2)
+**Rama:** `a/resumen`
+**Fecha:** 2026-11-09
+**Commits:** `8155165` (spec alineada con lo acordado), `ad3cd74` (servicio `api/src/servicios/reportes.js`), `0c6ede0` (ruta), `603fa20` (montaje en `api/src/app.js`, archivo compartido), `1800850` (pruebas de la API), `f1e0227` (acciones y vista de la SPA), `86449a7` (pruebas de la SPA)
+**Entorno:** MySQL 8.4 en Docker (`crm-mysql`), Node.js 24, Express 5, `mysql2`; Laravel 13 para la comparación con el panel.
+
+### Cómo se ejecutó
+
+```
+cd api
+npm test
+DB_NAME=crm_belleza_test npm run test:bd
+cd ../frontend
+node --test test/*.test.js
+```
+
+`npm run test:bd` se ejecutó contra `crm_belleza_test`, porque la suite de la Parte B también escribe en la base y A6-06 gana la op. 4. Con otra base, A6-06 se omite y lo indica. Al terminar se volvió a cargar `VerificacionSeeder`:
+
+```
+cd laravel && DB_DATABASE=crm_belleza_test php artisan migrate:fresh --seeder=VerificacionSeeder --force
+```
+
+### Resultado
+
+- **`npm test` en `api/`:** 489 pruebas: 434 superadas, 0 fallidas, 34 omitidas (las de base de datos, que necesitan `test:bd`) y 21 `todo`. Las 13 de `reportes-a6.test.js` pasan.
+- **`DB_NAME=crm_belleza_test npm run test:bd`:** 489 pruebas: 464 superadas, 0 fallidas, 4 omitidas y 21 `todo`.
+  - Las 4 omitidas son de la Parte B (B2-01, B2-04, B2-08 y B2-10) y necesitan la variable `CLAVE_SEMILLA`.
+  - Las 7 de `integracion-a6.test.js`, incluida A6-06, pasan; A6-06 deja la op. 4 en negociación al terminar.
+- **`node --test test/*.test.js` en `frontend/`:** 150 de 150, de las cuales 13 son de `resumen-a6.test.js`.
+- **Archivos de la Parte B:** no se modificaron. La única línea compartida es el montaje en `api/src/app.js`, en su propio commit. `frontend/js/app.js`, `estado.js` y `api.js` no cambiaron.
+
+### Matriz de criterios
+
+| Criterio | Prueba | Resultado |
+|---|---|---|
+| A6-01 — Resumen del mes | `integracion-a6`: Valeria 2026-10 → exactamente `{ "mes": "2026-10", "ventas": 2, "total": 9250, "pronostico": 2512.88, "cartera": { "clientes": 3, "maximo": 10 } }`, con `typeof number`; `reportes-a6`: forma exacta y orden de los campos | Cumple |
+| A6-02 — Mes por omisión e inválido | `reportes-a6`: reloj en 2026-11-01 03:30 UTC → `2026-10`; `2026-13`, `2026-1`, `26-10`, vacío, `octubre` y `2026-10-01` → 400 «El mes debe tener el formato AAAA-MM». `integracion-a6`: sin `mes` → el mes actual de Guatemala | Cumple |
+| A6-03 — Otros meses y vendedores | `integracion-a6`: Valeria 2026-11 1 / 3600 / 2512.88 / 3; Diego 1 / 6000 / 112.5 / 2; Carlos 1 / 7200 / 4125.75 / 9; Valeria 2026-09 0 / 0 / 2512.88 | Cumple |
+| A6-04 — Solo los datos del vendedor del token | `?vendedor_id=6`, `mes` repetido y parámetro desconocido → 400 (D6); la respuesta no contiene `vendedor_id`, `id`, `supervisor_id` ni `password`; el vendedor de la consulta SQL es el del token | Cumple |
+| A6-05 — Autenticación | Sin token, token inválido, Iván (desactivado) y administrador → 401 | Cumple |
+| A6-06 — Una venta nueva se refleja | `integracion-a6` (solo en `crm_belleza_test`): al ganar la op. 4, +1 venta, +2750.50 y pronóstico de 2512.88 a 450. El panel muestra lo mismo (A5-15, nota 1 de A5) | Cumple |
+| A6-07 — Paridad con el panel | `integracion-a6`, contra la tabla de A5 §5.4, y en vivo (nota 1) | Cumple |
+| A6-08 — Errores sin detalles internos | `reportes-a6`: un pool que falla da 500 `{ "error": "Error interno del servidor" }`, sin SQL, `ER_` ni pila | Cumple |
+| A6-09 — Vista del resumen | `resumen-a6`: «octubre de 2026», 2, total y pronóstico con `formatearQuetzales`, «3 de 10»; el mismo HTML con `TZ=Asia/Tokyo` y `TZ=America/New_York`, en procesos hijos con zonas distintas | Cumple en pruebas; ver nota 2 |
+| A6-10 — Mes inicial de Guatemala | `resumen-a6`: a las 2026-11-01 03:30 UTC se pide `?mes=2026-10` y el selector muestra 2026-10 | Cumple en pruebas; ver nota 2 |
+| A6-11 — Carga, error y reintento | `resumen-a6`: «Cargando…» con el selector deshabilitado, 500 y sin conexión con «Reintentar», 401 gestionado por `api.js` y respuesta de un mes anterior descartada | Cumple en pruebas; ver nota 2 |
+| A6-12 — Texto escapado y sesión | `resumen-a6`: el error de la API se escapa; no se dibujan datos ni respuestas de la sesión anterior (S4) | Cumple en pruebas; ver nota 2 |
+
+**Nota 1 (A6-07, paridad en vivo).** Con el panel (puerto 8999) y la API (puerto 3999) sobre `crm_belleza_test`, se comparó `GET /api/reportes/resumen` con el reporte del panel filtrado por el mismo vendedor (`/reportes?mes=…&vendedor=…`). Los resultados fueron iguales en los cinco casos:
+
+| Vendedor | Mes | API | Panel |
+|---|---|---|---|
+| Valeria | 2026-10 | 2 / 9250 / 2512.88 / 3 | 2 / 9250.00 / 2512.88 / 3 |
+| Valeria | 2026-11 | 1 / 3600 / 2512.88 / 3 | 1 / 3600.00 / 2512.88 / 3 |
+| Diego | 2026-10 | 1 / 6000 / 112.5 / 2 | 1 / 6000.00 / 112.50 / 2 |
+| Carlos | 2026-10 | 1 / 7200 / 4125.75 / 9 | 1 / 7200.00 / 4125.75 / 9 |
+| Valeria | 2026-09 | 0 / 0 / 2512.88 / 3 | 0 / 0.00 / 2512.88 / 3 |
+
+Era de solo lectura; aun así, al terminar se volvió a cargar `VerificacionSeeder`.
+
+**Nota 2 (A6-09 a A6-12 en el navegador).** La vista y las acciones están probadas con `node:test`. En el navegador, `#/resumen` todavía muestra el marcador «Disponible próximamente» de la Parte B: la integración en `frontend/js/app.js` le corresponde a la Parte B (P2), con el fragmento entregado por la Parte A. La prueba en el navegador queda pendiente hasta entonces.
+
+**Nota 3 (formato).** `formatearQuetzales`, de la Parte B, muestra «Q 9,250.00», con un espacio después de la Q (formato `es-GT` de `Intl`). El panel muestra «Q9,250.00». Los números son los mismos y solo cambia la presentación; las pruebas de la SPA comparan contra el resultado de `formatearQuetzales`.
+
+---
+
 ## Bitácora de IA
 
 Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-15). Se trasladan o enlazan aquí antes de la entrega.
