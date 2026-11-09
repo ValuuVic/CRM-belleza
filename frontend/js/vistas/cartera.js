@@ -8,24 +8,29 @@ import { campo, spinner } from './campo.js';
 
 const SIN_DATO = '<span class="text-body-secondary">—</span>';
 
+// A 375 px (B6-04) las cinco columnas no caben y el botón «Editar» quedaba cortado: en pantallas
+// pequeñas (< 576 px) el correo se muestra bajo el nombre y su columna se oculta.
 const fila = (c, bloqueado) => `
   <tr>
-    <td class="fw-medium text-break">${escaparHtml(c.nombre)}</td>
+    <td class="text-break">
+      <span class="fw-medium">${escaparHtml(c.nombre)}</span>
+      ${c.correo ? `<div class="small text-body-secondary d-sm-none">${escaparHtml(c.correo)}</div>` : ''}
+    </td>
     <td class="text-nowrap">${escaparHtml(c.nit)}</td>
     <td class="text-nowrap">${escaparHtml(c.telefono)}</td>
-    <td class="text-break">${c.correo ? escaparHtml(c.correo) : SIN_DATO}</td>
+    <td class="text-break d-none d-sm-table-cell">${c.correo ? escaparHtml(c.correo) : SIN_DATO}</td>
     <td class="text-end">
       <button type="button" class="btn btn-sm btn-outline-primary" data-accion="editar-cliente" data-id="${escaparHtml(c.id)}"
               aria-label="Editar ${escaparHtml(c.nombre)}" ${bloqueado ? 'disabled' : ''}>Editar</button>
     </td>
   </tr>`;
 
-function renderBusqueda({ busqueda, cargando }) {
+function renderBusqueda({ busqueda, borrador, cargando }) {
   return `
     <form id="form-busqueda" class="d-flex flex-wrap gap-2 flex-grow-1" role="search" novalidate>
       <label for="busqueda-q" class="visually-hidden">Buscar por nombre o NIT</label>
       <input id="busqueda-q" name="q" type="search" class="form-control flex-grow-1 w-auto"
-             placeholder="Buscar por nombre o NIT" maxlength="100" value="${escaparHtml(busqueda)}" autocomplete="off">
+             placeholder="Buscar por nombre o NIT" maxlength="100" value="${escaparHtml(borrador ?? busqueda)}" autocomplete="off">
       <button type="submit" class="btn btn-outline-secondary" ${cargando ? 'disabled' : ''}>Buscar</button>
       ${busqueda ? `<button type="button" class="btn btn-link px-1" data-accion="limpiar-busqueda" ${cargando ? 'disabled' : ''}>Limpiar</button>` : ''}
     </form>`;
@@ -82,7 +87,7 @@ function renderListado({ cargando, clientes, error, cargada, busqueda, formulari
   }
   if (cargada && clientes.length === 0) {
     return busqueda
-      ? `<p class="text-body-secondary">No se encontraron clientes de su cartera para «${escaparHtml(busqueda)}».</p>`
+      ? `<p class="text-body-secondary text-break">No se encontraron clientes de su cartera para «${escaparHtml(busqueda)}».</p>`
       : '<p class="text-body-secondary">Todavía no tiene clientes asignados.</p>';
   }
   const bloqueado = Boolean(formulario?.enviando);
@@ -90,7 +95,7 @@ function renderListado({ cargando, clientes, error, cargada, busqueda, formulari
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead>
-          <tr><th scope="col">Nombre</th><th scope="col">NIT</th><th scope="col">Teléfono</th><th scope="col">Correo</th><th scope="col"><span class="visually-hidden">Acciones</span></th></tr>
+          <tr><th scope="col">Nombre</th><th scope="col">NIT</th><th scope="col">Teléfono</th><th scope="col" class="d-none d-sm-table-cell">Correo</th><th scope="col"><span class="visually-hidden">Acciones</span></th></tr>
         </thead>
         <tbody>${clientes.map((c) => fila(c, bloqueado)).join('')}</tbody>
       </table>
@@ -146,7 +151,7 @@ export function renderCartera(estado) {
 
   const barra = `
     <div class="d-flex flex-wrap align-items-start gap-2 mb-3">
-      ${renderBusqueda({ busqueda: c.busqueda ?? '', cargando: c.cargando })}
+      ${renderBusqueda({ busqueda: c.busqueda ?? '', borrador: c.borradorBusqueda ?? null, cargando: c.cargando })}
       <div class="d-flex flex-wrap gap-2">
         <button type="button" class="btn btn-primary" data-accion="nuevo-cliente"
                 ${llena || formulario ? 'disabled' : ''} ${llena ? 'title="Su cartera ya tiene el máximo de clientes"' : ''}>Nuevo cliente</button>

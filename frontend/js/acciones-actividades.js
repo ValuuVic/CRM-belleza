@@ -7,7 +7,7 @@
 //   después del 200, nunca antes.
 // - La fecha del datetime-local se envía con la zona de Guatemala (localGuatemalaAIso).
 
-import { obtenerEstado, actualizar } from './estado.js';
+import { obtenerEstado, actualizar, tokenActual, sigueLaSesion } from './estado.js';
 import { obtenerActividades, crearActividad, marcarActividad, obtenerClientes } from './api.js';
 import { localGuatemalaAIso } from './util/formato.js';
 
@@ -21,10 +21,7 @@ const cambiarFormulario = (cambios) => actualizar((e) => ({
 }));
 const mensajeDe = (r, porDefecto) => (typeof r.datos?.error === 'string' && r.datos.error) || porDefecto;
 
-// Una respuesta que llega después de cerrar sesión (o de que entre otra persona) se descarta:
-// los datos de una sesión nunca se escriben en el estado de otra (S4).
-const tokenActual = () => obtenerEstado().sesion?.token ?? null;
-const sigueLaSesion = (token, r) => r.status !== 401 && token !== null && tokenActual() === token;
+// Las respuestas de otra sesión se descartan con tokenActual/sigueLaSesion (estado.js, S4).
 
 // ---------- Listado ----------
 

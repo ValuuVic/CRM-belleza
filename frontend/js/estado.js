@@ -83,12 +83,13 @@ export function detalleInicial() {
  * - clientes: resultado de la última consulta (con o sin búsqueda).
  * - total: tamaño de la cartera completa, para el indicador «X de 10» aunque haya búsqueda.
  * - busqueda: texto aplicado en el servidor (solo cambia al enviar el formulario).
+ * - borradorBusqueda: lo escrito en la caja de búsqueda sin enviar (null: se muestra `busqueda`).
  * - formulario: null o { modo: 'crear' | 'editar', id, valores, original, errores, mensaje, enviando }.
  * - disponibles: clientes sin vendedor ({ id, nombre }) y el estado de la acción «tomar».
  */
 export function carteraInicial() {
   return {
-    cargando: false, clientes: [], total: 0, busqueda: '', error: null, cargada: false,
+    cargando: false, clientes: [], total: 0, busqueda: '', borradorBusqueda: null, error: null, cargada: false,
     formulario: null,
     disponibles: { visible: false, cargando: false, lista: [], error: null, tomando: null },
   };
@@ -105,6 +106,22 @@ export function actualizar(cambios) {
   estado = { ...estado, ...parcial };
   for (const oyente of oyentes) oyente(estado);
 }
+
+/**
+ * Cambia el estado SIN avisar a los oyentes (sin volver a dibujar). Solo para guardar lo que el
+ * usuario escribe en un formulario (borradores, B6-05): el DOM ya muestra ese texto, y redibujar en
+ * cada tecla movería el cursor. El siguiente render normal ya incluye lo guardado.
+ */
+export function modificarSinRender(cambios) {
+  const parcial = typeof cambios === 'function' ? cambios(estado) : cambios;
+  estado = { ...estado, ...parcial };
+}
+
+// Una respuesta que llega después de cerrar sesión (o de que entre otra persona) se descarta:
+// los datos de una sesión nunca se escriben en el estado de otra (S4, B6-08).
+// Cada acción guarda el token al empezar y comprueba, al llegar la respuesta, que sigue siendo el mismo.
+export const tokenActual = () => estado.sesion?.token ?? null;
+export const sigueLaSesion = (token, r) => r.status !== 401 && token !== null && tokenActual() === token;
 
 export function suscribir(oyente) {
   oyentes.add(oyente);
