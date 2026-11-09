@@ -465,6 +465,80 @@ Era de solo lectura; aun así, al terminar se volvió a cargar `VerificacionSeed
 
 ---
 
+## A7 — Validación y pruebas del panel (Parte A)
+
+**Plan:** `docs/plan.md` A7 (L7, CLAUDE.md §5 y seguridad aplicable)
+**Rama:** `a/validacion`
+**Fecha:** 2026-11-09
+**Commits:** `33e6f3b` (correcciones), `abc585f` (pruebas)
+**Entorno:** MySQL 8.4 en Docker (`crm-mysql`), PHP 8.4.0, Laravel 13, Node.js 24.
+
+A7 revisa el panel completo, no una fase. La prueba `tests/Feature/A7ValidacionTest.php` recorre las rutas registradas, así que una ruta nueva sin FormRequest, con mensajes que no están en español o sin control de rol la hace fallar.
+
+### Hallazgos y correcciones
+
+| # | Hallazgo | Cómo se detectó | Corrección |
+|---|---|---|---|
+| 1 | El cambio de contraseña del perfil (`PUT /password`, heredado de Breeze) validaba dentro del controlador, sin FormRequest | Revisión de las rutas de escritura (`route:list`) y de sus controladores | `App\Http\Requests\Auth\PasswordUpdateRequest`, con la bolsa `updatePassword` y mensajes propios |
+| 2 | Ese formulario mostraba las claves crudas `validation.required`, `validation.current_password`, `validation.min.string` y `validation.confirmed`, porque el proyecto no tiene archivos de traducción y usa `APP_LOCALE=es` | Envío de datos inválidos a cada formulario desde una prueba | Mensajes en español en `PasswordUpdateRequest` («Escriba su contraseña actual.», «La contraseña actual no es correcta.»…) |
+| 3 | `/confirm-password` (Breeze) mostraba la clave cruda `auth.password` y no tenía regla para el campo vacío | Igual que el 2 | `App\Http\Requests\Auth\ConfirmPasswordRequest` y el mensaje «La contraseña no es correcta.» |
+| 4 | Las pantallas de Breeze estaban en inglés: login («Log in», «Password», «Remember me»), perfil, navegación («Dashboard», «Profile», «Log Out») e inicio («You're logged in!») | Búsqueda de las cadenas `__()` en `resources/views` | `laravel/lang/es.json` con esas cadenas, y `config/app.php` con `es` como idioma por omisión |
+
+Sin cambios necesarios:
+- Todos los formularios de A2 a A5 ya usaban FormRequest con mensajes en español y conservaban lo escrito.
+- No hay `{!! !!}` en ninguna vista.
+- Las consultas crudas del panel (`ReporteVentas` y el subtotal de líneas de `OportunidadController`) solo usan texto fijo y constantes de la clase.
+
+### Cómo se ejecutó
+
+```
+cd laravel
+php artisan test
+PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
+cd ../api
+npm test
+DB_NAME=crm_belleza_test npm run test:bd
+cd ..
+node --test "frontend/test/*.test.js"
+node --test .claude/hooks/pruebas/hooks.test.mjs
+```
+
+Al terminar, `crm_belleza_test` se volvió a cargar con `VerificacionSeeder`.
+
+### Resultado (pruebas finales)
+
+| Suite | Pruebas | Superadas | Fallidas | Omitidas | `todo` |
+|---|---:|---:|---:|---:|---:|
+| `php artisan test` (Laravel) | 164 | 151 | 0 | 13 (A1, opt-in) | — |
+| `PRUEBAS_MYSQL=1 … A1EsquemaSemillaTest` | 13 | 13 | 0 | 0 | — |
+| `npm test` (API) | 501 | 446 | 0 | 34 (base de datos) | 21 |
+| `DB_NAME=crm_belleza_test npm run test:bd` (API) | 501 | 476 | 0 | 4 (sin `CLAVE_SEMILLA`) | 21 |
+| `node --test frontend/test/*.test.js` (SPA) | 150 | 150 | 0 | 0 | — |
+| Hooks (`hooks.test.mjs`) | 34 | 34 | 0 | 0 | — |
+
+`A7ValidacionTest`: 6 de 6, 407 aserciones.
+
+**La prueba detecta lo que debe.** Se volvió temporalmente a la versión anterior de `PasswordController` y se quitó `lang/es.json`. Fallaron A7-01 («Rutas que reciben datos sin FormRequest»), A7-02 («password.update vacío: clave sin traducir») y A7-06 («/login todavía muestra "Log in"»). Después se restauraron los dos archivos.
+
+### Matriz de tareas de A7
+
+| Tarea del plan | Prueba | Resultado |
+|---|---|---|
+| Revisar formularios | `test_a7_02_…` envía datos inválidos a los 16 casos de los 13 formularios del panel (login, perfil, contraseña, confirmación, cuentas, productos, clientes, asignación, liberación y eliminación) | Cumple, tras los hallazgos 1 a 3 |
+| Verificar FormRequest | `test_a7_01_…`: cada ruta POST, PUT, PATCH o DELETE de `App\Http\Controllers` recibe un FormRequest, salvo 3 excepciones justificadas que no reciben datos (`logout`, `verification.send`, `clientes.destroy`) | Cumple, tras el hallazgo 1 |
+| Mostrar mensajes en español | `test_a7_02_…`: más de 30 mensajes, ninguno es una clave sin traducir ni contiene palabras en inglés, y todos son oraciones completas. `test_a7_06_…`: login, inicio, perfil, confirmación y clientes sin textos de Breeze en inglés | Cumple, tras los hallazgos 2 a 4 |
+| Conservar datos escritos ante errores | `test_a7_03_…`: login, cuentas, contraseña, productos y clientes conservan lo escrito y nunca devuelven `password`, `password_confirmation` ni `current_password` | Cumple |
+| Verificar permisos de administrador y supervisor | `test_a7_04_…`: cada página GET del panel con control de rol (13 o más), sin sesión → `/login`; administradora → 200; supervisor → 200, o 403 en las de solo administrador; vendedora con sesión forzada → `/login` o 404, nunca la página | Cumple |
+| Revisar la seguridad de consultas y vistas | `test_a7_05_…`: ningún `{!! !!}` en las vistas, ningún `DB::unprepared`, y ninguna consulta cruda (`selectRaw`, `whereRaw`, `DB::raw`, `DB::select`…) con variables | Cumple |
+| Ejecutar pruebas finales de Laravel | Tabla de resultados: todas las suites del proyecto sin fallos | Cumple |
+| Registrar evidencias | Esta sección | Cumple |
+
+**Nota (vendedora con sesión forzada).** El login rechaza a los vendedores (A2-04), así que en la práctica nunca tienen sesión en el panel. Si una prueba se la fuerza con `actingAs`, las rutas sin parámetros la mandan a `/login` (`cuenta.vigente`). Las que tienen `{cliente}` u `{oportunidad}` responden 404, porque el binding con alcance (DA4-1, DA5-7) se resuelve antes que ese middleware. En ningún caso ve datos.
+
+**Fuera de A7.** La portada `/` sigue siendo la página de bienvenida de Laravel, en inglés. No es un formulario; si se quiere cambiar, es otra tarea.
+
+---
+
 ## Bitácora de IA
 
 Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-15). Se trasladan o enlazan aquí antes de la entrega.

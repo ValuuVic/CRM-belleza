@@ -19,8 +19,8 @@ El desarrollo se realizará entre dos integrantes, trabajando en paralelo y real
 **Última actualización:** 2026-11-09.
 - Las casillas `[x]` son tareas terminadas con evidencia: pruebas que pasan y, para la Parte A, su registro en `docs/verificacion.md`.
 - Los cambios respecto del plan original están en la sección 14.
-- **Hecho:** Parte A, A1 a A6. Parte B, B1 a B5 y casi toda B6.
-- **Pendiente:** A7, la evidencia de la Parte B en `docs/verificacion.md` y las pruebas de integración en el navegador (sección 8).
+- **Hecho:** Parte A, A1 a A7. Parte B, B1 a B5 y casi toda B6.
+- **Pendiente:** la evidencia de la Parte B en `docs/verificacion.md` y las pruebas de integración en el navegador (sección 8).
 
 ### 1.2 Documentos utilizados
 | Documento | Propósito |
@@ -330,7 +330,7 @@ Verificar estructura, registros y cifras de control.
 - [x] Registrar evidencias.
 
 **Entrega:** Panel funcional y verificado.
-**Estado:** pendiente. Varias tareas ya están cubiertas por los criterios de cada fase: FormRequest en todos los formularios, mensajes en español con lo escrito conservado (A2-18, A3-13, A4-15) y permisos por rol (A2-12, A3-24, A4-03, A5-10). Falta la revisión final de A7, con la suite completa y su registro.
+**Estado:** terminada (rama `a/validacion`, commits `33e6f3b` y `abc585f`). La revisión del panel completo encontró y corrigió 4 hallazgos: el cambio de contraseña sin FormRequest, las claves de traducción crudas en ese formulario y en `/confirm-password`, y las pantallas de Breeze en inglés. `A7ValidacionTest` comprueba en todas las rutas: FormRequest, mensajes en español, datos conservados, permisos por rol, y vistas y SQL seguros. Las pruebas finales de todas las suites pasan sin fallos. Evidencia en `docs/verificacion.md` (A7).
 
 ## 7. Fases de la Parte B — Express y SPA
 
