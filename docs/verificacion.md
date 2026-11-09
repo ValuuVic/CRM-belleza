@@ -76,12 +76,84 @@ Estas cifras se calcularon con SQL de prueba. El endpoint `GET /api/reportes/res
 
 `npm run test:bd` en `api/` con la semilla cargada: 421 pruebas, 397 superadas, 0 fallidas, 0 omitidas y 24 `todo`. Antes de A1 se omitían 23 pruebas de integración porque faltaba `VerificacionSeeder`; ahora se ejecutan y pasan. Como esas pruebas escriben en la base, al terminar se volvió a ejecutar `migrate:fresh --seeder=VerificacionSeeder`.
 
-### Pendiente
+### Pendiente (resuelto en A2)
 
-- **La suite de Laravel falla sobre SQLite.** `php artisan test` da 38 pruebas: 2 superadas, 23 con error y 13 omitidas. `laravel/phpunit.xml` usa SQLite en memoria, y SQLite no admite los `ALTER TABLE … ADD CONSTRAINT … CHECK` de las migraciones. Las 23 con error son las pruebas de Breeze que migran la base; las 13 omitidas son las de A1 sin MySQL. Falta decidir la base de pruebas (recomendado: una base MySQL `crm_belleza_test`). Ver IA-14.
+- ~~**La suite de Laravel falla sobre SQLite.** `php artisan test` da 38 pruebas: 2 superadas, 23 con error y 13 omitidas. `laravel/phpunit.xml` usa SQLite en memoria, y SQLite no admite los `ALTER TABLE … ADD CONSTRAINT … CHECK` de las migraciones. Las 23 con error son las pruebas de Breeze que migran la base; las 13 omitidas son las de A1 sin MySQL. Falta decidir la base de pruebas (recomendado: una base MySQL `crm_belleza_test`).~~ Resuelto en A2 con la base `crm_belleza_test` (decisión P8). Ver IA-15.
+
+---
+
+## A2 — Cuentas, autenticación y roles del panel (Parte A)
+
+**Spec:** `docs/specs/A2-cuentas.md`
+**Rama:** `a/cuentas`
+**Fecha:** 2026-11-08
+**Commits:** `637c1f4` (registro, recuperación y perfil), `10a0bdf` (login y middlewares), `9e6e3f2` (gestión de cuentas), `150bedf` (pruebas)
+**Entorno:** MySQL 8.4 en Docker (`crm-mysql`), PHP 8.4.0, Laravel 13.
+
+### Base de datos de pruebas (P8) — paso manual
+
+Las pruebas de Laravel corren contra `crm_belleza_test`, nunca contra `crm_belleza`. La base se crea una vez en el contenedor, con las variables del propio contenedor (no hace falta leer ningún `.env`):
+
+```
+docker exec crm-mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS crm_belleza_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON crm_belleza_test.* TO \`$MYSQL_USER\`@\`%\`;"'
+```
+
+Cada integrante debe ejecutarlo en su equipo (y otra vez si borra el volumen `crm_mysql_data`). `laravel/phpunit.xml` fija `DB_CONNECTION=mysql` y `DB_DATABASE=crm_belleza_test`; el servidor, el usuario y la contraseña salen del `.env` de Laravel. Las pruebas con `RefreshDatabase` ejecutan las migraciones y cargan `VerificacionSeeder` (`tests/TestCase.php`).
+
+### Cómo se ejecutó
+
+```
+cd laravel
+php artisan test
+PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
+```
+
+### Resultado
+
+- `php artisan test`: **67 pruebas, 54 superadas, 0 fallidas, 13 omitidas** (las de A1, opt-in), 321 aserciones.
+- `PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, 126 aserciones, sobre `crm_belleza_test`.
+- `crm_belleza` no cambió: 7 cuentas con sus roles y estados de la semilla y 43 registros de historial.
+
+### Matriz de criterios
+
+| Criterio | Prueba | Resultado |
+|---|---|---|
+| A2-01 — Sin registro público | `RegistrationTest` (3 pruebas: `/register` 404 en GET y POST, sin ruta, controlador ni vista; portada y login sin enlace) | Cumple |
+| A2-02 — Perfil sin «Eliminar cuenta» | `ProfileTest::test_profile_page_has_no_delete_account_form`, `test_user_can_not_delete_their_account` (405, la cuenta sigue) | Cumple |
+| A2-03 — Administrador y supervisor entran | `AuthenticationTest::test_administrator_and_supervisor_can_log_in` (Alicia y Sergio) | Cumple |
+| A2-04 — Vendedor enviado a la SPA | `AuthenticationTest::test_seller_is_sent_to_the_spa` (Valeria; sin sesión) | Cumple |
+| A2-05 — Cuenta desactivada | `AuthenticationTest::test_inactive_accounts_can_not_log_in` (Iván y una supervisora desactivada) | Cumple |
+| A2-06 — Credenciales incorrectas | `AuthenticationTest::test_wrong_credentials_always_give_the_same_message` (admin, vendedora, desactivado e inexistente con el mismo mensaje), `test_login_is_rate_limited` (5 intentos) | Cumple |
+| A2-07 — Lo escrito se conserva | `AuthenticationTest::test_rejected_login_keeps_the_email_but_not_the_password` | Cumple |
+| A2-08 — Desactivación con sesión abierta | `A2CuentasTest::test_a2_08_…` | Cumple |
+| A2-09 — Cambio de rol con sesión abierta | `A2CuentasTest::test_a2_09_…` | Cumple |
+| A2-10 — Lectura en cada petición | `A2CuentasTest::test_a2_10_…` (cambio hecho por fuera del modelo en sesión) | Cumple |
+| A2-11 — Sin sesión, al login | `A2CuentasTest::test_a2_11_…` | Cumple |
+| A2-12 — Cuentas solo para el administrador | `A2CuentasTest::test_a2_12_…` (Sergio recibe 403 en las 5 rutas y no ve el menú) | Cumple |
+| A2-13 — Lista | `A2CuentasTest::test_a2_13_…` (7 cuentas, sin hashes) | Cumple |
+| A2-14 — Crear un vendedor | `A2CuentasTest::test_a2_14_…` (hash `$2y$` válido con `Hash::check`) | Cumple |
+| A2-15 — Supervisor o administrador sin supervisor | `A2CuentasTest::test_a2_15_…` | Cumple |
+| A2-16 — Vendedor sin supervisor válido | `A2CuentasTest::test_a2_16_…` (vacío, supervisora inactiva, Valeria, 999; también al editar) | Cumple |
+| A2-17 — Correo repetido | `A2CuentasTest::test_a2_17_…` (incluye mayúsculas y espacios) | Cumple |
+| A2-18 — Validación general | `A2CuentasTest::test_a2_18_…` (mensajes en español; no se conserva la contraseña) | Cumple |
+| A2-19 — Editar sin cambiar la contraseña | `A2CuentasTest::test_a2_19_…` (y cambio de contraseña por el administrador) | Cumple |
+| A2-20 — Desactivar y reactivar | `A2CuentasTest::test_a2_20_…` (los 3 clientes de Valeria no cambian) | Cumple en el panel; ver nota 1 |
+| A2-21 — Autoprotección del administrador | `A2CuentasTest::test_a2_21_…` | Cumple |
+| A2-22 — Sin borrado | `A2CuentasTest::test_a2_22_…` (405) | Cumple |
+| A2-23 — Campos protegidos del perfil | `ProfileTest::test_protected_fields_are_ignored` | Cumple |
+| A2-24 — Cuenta inexistente | `A2CuentasTest::test_a2_24_…` (999 y `abc` → 404) | Cumple |
+| A2-25 — Sin recuperación de contraseña | `PasswordResetTest` (4 pruebas) | Cumple |
+| A2-26 — Supervisor con vendedores activos | `A2CuentasTest::test_a2_26_…` | Cumple |
+| A2-27 — Cambio de rol con dependientes | `A2CuentasTest::test_a2_27_…` | Cumple |
+| A2-28 — Al menos un administrador activo | `A2CuentasTest::test_a2_28_…` (2 pruebas) | Cumple; ver nota 2 |
+| A2-29 — Base de pruebas | `A2CuentasTest::test_a2_29_…` y la suite completa sin errores | Cumple |
+
+**Nota 1 (A2-20).** La prueba del panel comprueba que `activo` cambia y que la cuenta y sus clientes se conservan. El 401 de la API a una cuenta desactivada lo cubren las pruebas de la Parte B (B2-08, CA-03); la prueba manual de punta a punta (desactivar a Valeria en el panel y llamar a la API con su token) queda pendiente para la integración.
+
+**Nota 2 (A2-28).** PHPUnit no puede lanzar dos peticiones HTTP a la vez. La carrera se simula: una administradora que ya pasó el middleware intenta desactivar a la otra cuando, en la base, ya quedó desactivada; el cambio se rechaza porque se decide con los administradores bloqueados. Una segunda prueba comprueba en el registro de consultas que el `SELECT … FOR UPDATE` de los administradores ocurre antes del `UPDATE`.
 
 ---
 
 ## Bitácora de IA
 
-Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-14). Se trasladan o enlazan aquí antes de la entrega.
+Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-15). Se trasladan o enlazan aquí antes de la entrega.

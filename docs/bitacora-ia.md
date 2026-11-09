@@ -32,7 +32,7 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-12 | 2026-11-08 | B | `docs/especificacion.md` y `api/test/integracion-b3.test.js` (lectura del enunciado) | Corregido | `ff34248` |
 | IA-13 | 2026-11-08 | B | B5 · actividades (API, simulación y SPA) | Corregido | `2865d43` (API) y `a9f8bd4` (SPA) |
 | IA-14 | 2026-11-08 | B | B6 · SPA a 375 px, sesión, Postman, script de concurrencia y pruebas | Corregido | Pendiente (sin commit) |
-| IA-14 | 2026-11-08 | A | A1 · migraciones y pruebas de Laravel (`phpunit.xml`) | Documentado; corrección pendiente | `8e0cb10` |
+| IA-15 | 2026-11-08 | A | A1 · migraciones y pruebas de Laravel (`phpunit.xml`) | Corregido en A2 | `8e0cb10`, `150bedf` |
 
 ---
 
@@ -504,7 +504,9 @@ El propio agente desconfió del resultado porque contradecía las cifras de cont
 
 ---
 
-## IA-14 — A1 dada por verificada sin correr las pruebas de Laravel
+## IA-15 — A1 dada por verificada sin correr las pruebas de Laravel
+
+*Se registró primero como IA-14; al unir las ramas, ese número ya lo usaba un caso de la Parte B (B6), así que este pasa a IA-15.*
 
 **Propuesta del agente.**
 Al terminar A1 (migraciones, modelos y `VerificacionSeeder`), el agente informó que la fase estaba verificada. Se basó en su propio script contra MySQL (47 de 47) y en `npm run test:bd` de la API (397 superadas, 0 fallidas), pero no ejecutó `php artisan test`.
@@ -527,3 +529,9 @@ Al preparar la prueba de A1 para `laravel/tests/`, el agente revisó `phpunit.xm
 - `PRUEBAS_MYSQL=1 DB_CONNECTION=mysql DB_DATABASE=crm_belleza php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, 126 aserciones.
 
 **Commit.** `8e0cb10` test(a1): prueba del esquema y la semilla de verificación (la configuración de pruebas sigue pendiente).
+
+**Cierre (A2, decisión P8).**
+- Se creó la base MySQL `crm_belleza_test` en el contenedor y `laravel/phpunit.xml` apunta a ella; las pruebas cargan `VerificacionSeeder` (`tests/TestCase.php`).
+- `php artisan test`: 67 pruebas, 54 superadas, 0 fallidas y 13 omitidas (las de A1, que siguen siendo opt-in con `PRUEBAS_MYSQL=1`).
+- `PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, ya sobre `crm_belleza_test`.
+- Commit: `150bedf` test(a2): base de pruebas MySQL y pruebas de cuentas y roles.
