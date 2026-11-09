@@ -3,7 +3,7 @@
 **Proyecto:** CRM Belleza  
 **Responsable:** Parte A  
 **Rama:** `a/clientes`  
-**Estado:** Aprobada por la Parte A (decisiones DA4-1 a DA4-9, P1 a P4); D2–D4 pendientes de confirmación de la Parte B en `docs/especificacion.md` (P1)  
+**Estado:** Aprobada (decisiones DA4-1 a DA4-9, P1 a P4); D2–D4 decididos en `docs/especificacion.md` (`spec-v1.1`)  
 **Referencia:** `docs/especificacion.md` (`spec-v1`) §3.1, §3.2, §4.3, §4.8, §4.9, R2, R3, R4, L4, L5, L7, S5, S7, S8, D2, D3, D4, D16, D17; `docs/plan.md` A4  
 **Dependencias:** A1 (tablas y semillas), A2 (middlewares `cuenta.vigente` y `rol`, base `crm_belleza_test`). Reglas de la API (solo lectura): `api/src/utils/validaciones.js`, `api/src/servicios/vendedores.js`, `api/src/rutas/clientes.js`.
 
@@ -186,7 +186,7 @@ Para el supervisor, `{cliente}` se resuelve dentro de su alcance (DA4-1): fuera 
 
 #### A4-21 — Liberar (D3)
 
-**Dada** Alicia, **cuando** libera Comercial El Quetzal (con las oportunidades abiertas 4 y 7), **entonces** se rechaza con «El cliente tiene oportunidades abiertas. Reasígnelo o cierre sus oportunidades antes de liberarlo.» y nada cambia; **cuando** libera María Coyoy (3, solo cerradas), **entonces** `vendedor_id` queda NULL, Valeria pasa a 2 de 10, las oportunidades 3 y 6 conservan `vendedor_id = 4` y las ventas de Valeria en octubre siguen en 2 por Q9,250.00.
+**Dada** Alicia, **cuando** libera Comercial El Quetzal (con las oportunidades abiertas 4 y 7), **entonces** se rechaza con «Cierre o reasigne las oportunidades abiertas antes de liberar al cliente.» (texto de D3) y nada cambia; **cuando** libera María Coyoy (3, solo cerradas), **entonces** `vendedor_id` queda NULL, Valeria pasa a 2 de 10, las oportunidades 3 y 6 conservan `vendedor_id = 4` y las ventas de Valeria en octubre siguen en 2 por Q9,250.00.
 
 #### A4-22 — Vendedor desactivado (D4)
 
@@ -230,7 +230,7 @@ Aprobadas por la Parte A el 2026-11-09, junto con DA4-1 a DA4-9.
 
 | Id | Pregunta | Decisión | Criterio |
 |---|---|---|---|
-| P1 | ¿Se adoptan D2, D3 y D4 (§14, en estado «Propuesta»)? | Sí, con estos detalles. Al reasignar se mueven solo las oportunidades abiertas; las cerradas conservan su vendedor y las actividades no se tocan, porque siguen al cliente. Liberar con oportunidades abiertas se rechaza. Los clientes de un vendedor desactivado se quedan con él hasta reasignarlos a mano. **Falta la confirmación de la Parte B** para marcar D2–D4 como «Decidida» en `docs/especificacion.md`, con una etiqueta `spec-v1.1` (§16.1) | A4-20, A4-21, A4-22 |
+| P1 | ¿Se adoptan D2, D3 y D4 (§14, en estado «Propuesta»)? | Sí, con estos detalles. Al reasignar se mueven solo las oportunidades abiertas; las cerradas conservan su vendedor y las actividades no se tocan, porque siguen al cliente. Liberar con oportunidades abiertas se rechaza. Los clientes de un vendedor desactivado se quedan con él hasta reasignarlos a mano. D2–D4 quedaron como «Decidida» en `docs/especificacion.md` (commit `5afb464`, etiqueta `spec-v1.1`), que además fija el mensaje de D3 | A4-20, A4-21, A4-22 |
 | P2 | ¿El supervisor puede editar los datos de un cliente disponible? | Sí: §3.2 le permite crearlos y asignarlos, y R2 dice que los ve | A4-14 |
 | P3 | ¿El supervisor ve el NIT, el teléfono y el correo de los disponibles? | Sí: la restricción de R3 a `id` y `nombre` es solo para la lista de disponibles de la API para vendedores | A4-02 |
 | P4 | ¿Al crear un cliente se puede elegir el vendedor? | Sí, es opcional: si se deja vacío, nace disponible. El supervisor solo puede elegir uno de su equipo, y el alta bloquea al vendedor y cuenta su cartera como una asignación | A4-08, A4-14, A4-18 |
@@ -265,7 +265,6 @@ No crear archivos adicionales que no sean necesarios ni migraciones nuevas.
 
 A4 se considerará terminada cuando:
 
-- D2–D4 estén confirmadas por la Parte B en `docs/especificacion.md` (P1).
 - El panel cumpla los criterios A4-01 a A4-29.
 - La suite de Laravel se ejecute completa, sin errores, y sus resultados queden registrados.
 - No se hayan modificado archivos de la Parte B (`api/`, `frontend/`).
