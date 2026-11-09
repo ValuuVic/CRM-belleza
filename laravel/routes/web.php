@@ -7,6 +7,7 @@ use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\OportunidadController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReporteController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -76,6 +77,7 @@ Route::middleware(['auth', 'rol:administrador,supervisor'])->group(function () {
     Route::get('/equipo', [EquipoController::class, 'index'])->name('equipo.index');
     Route::get('/oportunidades', [OportunidadController::class, 'index'])->name('oportunidades.index');
     Route::get('/oportunidades/{oportunidad}', [OportunidadController::class, 'show'])->whereNumber('oportunidad')->name('oportunidades.show');
+    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
 });
 
 require __DIR__.'/auth.php';

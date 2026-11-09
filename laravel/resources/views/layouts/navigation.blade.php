@@ -32,6 +32,9 @@
                     <x-nav-link :href="route('oportunidades.index')" :active="request()->routeIs('oportunidades.*')">
                         Oportunidades
                     </x-nav-link>
+                    <x-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')">
+                        Reportes
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -103,6 +106,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('oportunidades.index')" :active="request()->routeIs('oportunidades.*')">
                 Oportunidades
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('reportes.index')" :active="request()->routeIs('reportes.*')">
+                Reportes
             </x-responsive-nav-link>
         </div>
 
