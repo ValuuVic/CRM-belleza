@@ -92,6 +92,9 @@ export const ARCHIVOS_PARTE_A = new Set([
   'frontend/test/resumen-a6.test.js',
   'frontend/css/estilos.css',
   'frontend/index.html',
+  'frontend/favicon.ico',
+  'frontend/img/lumina-icono.png',
+  'frontend/js/vistas/login.js',
 ]);
 
 /** Archivos compartidos: requieren coordinación (docs/plan.md §3.4 y CLAUDE.md §2). */
