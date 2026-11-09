@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CuentaController;
+use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,19 @@ Route::middleware(['auth', 'rol:administrador'])
         Route::post('/', 'store')->name('store');
         Route::get('/{user}/editar', 'edit')->whereNumber('user')->name('edit');
         Route::put('/{user}', 'update')->whereNumber('user')->name('update');
+    });
+
+// Catálogo: el supervisor solo ve la lista (P1); alta y edición, solo el administrador. Sin borrado (A3-19).
+Route::middleware(['auth', 'rol:administrador,supervisor'])
+    ->get('/productos', [ProductoController::class, 'index'])->name('productos.index');
+
+Route::middleware(['auth', 'rol:administrador'])
+    ->prefix('productos')->name('productos.')->controller(ProductoController::class)
+    ->group(function () {
+        Route::get('/crear', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{producto}/editar', 'edit')->whereNumber('producto')->name('edit');
+        Route::put('/{producto}', 'update')->whereNumber('producto')->name('update');
     });
 
 require __DIR__.'/auth.php';
