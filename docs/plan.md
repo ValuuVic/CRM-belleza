@@ -15,6 +15,13 @@ El desarrollo se realizará entre dos integrantes, trabajando en paralelo y real
 - Todo cambio será revisado antes de integrarse a la rama principal.
 - Las pruebas y sus resultados se documentarán.
 
+### 1.0 Estado del plan
+**Última actualización:** 2026-11-09.
+- Las casillas `[x]` son tareas terminadas con evidencia: pruebas que pasan y, para la Parte A, su registro en `docs/verificacion.md`.
+- Los cambios respecto del plan original están en la sección 14.
+- **Hecho:** Parte A, A1 a A6. Parte B, B1 a B5 y casi toda B6.
+- **Pendiente:** A7, la evidencia de la Parte B en `docs/verificacion.md` y las pruebas de integración en el navegador (sección 8).
+
 ### 1.2 Documentos utilizados
 | Documento | Propósito |
 |---|---|
@@ -159,6 +166,8 @@ Laravel y Express deben poder conectarse con sus configuraciones locales cuando 
 ### Condición de finalización
 Ambas integrantes tienen un entorno local funcional y pueden ejecutar las herramientas necesarias.
 
+**Estado:** cumplida. MySQL 8.4 corre en Docker (`crm-mysql`), y Laravel y Express se conectan a `crm_belleza` con su `.env` local, que no se versiona.
+
 ## 5. Fase 1 — Especificación y organización
 **Responsables:** Ambas integrantes.
 
@@ -183,6 +192,8 @@ La especificación debe estar aprobada antes de implementar código funcional.
 ### Condición de finalización
 Existe una especificación aprobada y versionada en Git.
 
+**Estado:** cumplida. La especificación se aprobó con la etiqueta `spec-v1` (`4c6aa29`). Las correcciones posteriores aprobadas están en `spec-v1.1` y `spec-v1.2` (sección 14).
+
 ## 6. Fases de la Parte A — Laravel
 ### A1 — Migraciones y semillas
 **Rama sugerida:** `a/migraciones`
@@ -191,16 +202,16 @@ Existe una especificación aprobada y versionada en Git.
 
 **Tareas:**
 
-- [ ] Crear migraciones para las tablas obligatorias.
-- [ ] Agregar columnas de roles en users.
-- [ ] Crear llaves foráneas.
-- [ ] Crear índices únicos.
-- [ ] Crear restricciones CHECK.
-- [ ] Agregar stock al catálogo.
-- [ ] Crear VerificacionSeeder.
-- [ ] Crear SectorSeeder.
-- [ ] Validar las relaciones.
-- [ ] Comprobar las cifras oficiales.
+- [x] Crear migraciones para las tablas obligatorias.
+- [x] Agregar columnas de roles en users.
+- [x] Crear llaves foráneas.
+- [x] Crear índices únicos.
+- [x] Crear restricciones CHECK.
+- [x] Agregar stock al catálogo.
+- [x] Crear VerificacionSeeder.
+- [x] Crear SectorSeeder.
+- [x] Validar las relaciones.
+- [x] Comprobar las cifras oficiales.
 
 **Pruebas:**
 
@@ -211,92 +222,98 @@ En una base local de pruebas, recién preparada y cuya información pueda elimin
 Verificar estructura, registros y cifras de control.
 
 **Entrega:** Esquema y semilla listos para integración I1.
+**Estado:** terminada. Spec `docs/specs/A1-migraciones.md`; evidencia en `docs/verificacion.md` (A1).
 
 ### A2 — Usuarios, autenticación y roles
 **Rama:** `a/cuentas`
 **Requisitos:** L2, R1, S1, S2, S4.
 **Tareas:**
 
-- [ ] Configurar Breeze Blade.
-- [ ] Deshabilitar el registro público.
-- [ ] Crear administración de cuentas.
-- [ ] Implementar roles.
-- [ ] Asociar vendedores a supervisores.
-- [ ] Permitir activar y desactivar usuarios.
-- [ ] Impedir la autodesactivación del administrador.
-- [ ] Impedir que vendedores accedan al panel.
-- [ ] Revocar acceso de cuentas inactivas.
+- [x] Configurar Breeze Blade.
+- [x] Deshabilitar el registro público.
+- [x] Crear administración de cuentas.
+- [x] Implementar roles.
+- [x] Asociar vendedores a supervisores.
+- [x] Permitir activar y desactivar usuarios.
+- [x] Impedir la autodesactivación del administrador.
+- [x] Impedir que vendedores accedan al panel.
+- [x] Revocar acceso de cuentas inactivas.
 
 **Pruebas:** Acceso por rol, credenciales incorrectas y cuentas desactivadas.
+**Estado:** terminada. Spec `docs/specs/A2-cuentas.md`; evidencia en `docs/verificacion.md` (A2). Se agregó la base de pruebas `crm_belleza_test` (sección 14).
 
 ### A3 — Catálogo de productos
 **Rama:** `a/catalogo`
 **Requisitos:** L3, R6 y regla propia.
 **Tareas:**
 
-- [ ] Listar productos.
-- [ ] Crear productos.
-- [ ] Editar productos.
-- [ ] Desactivar productos.
-- [ ] Validar precios.
-- [ ] Gestionar stock.
-- [ ] Evitar stock negativo.
-- [ ] Conservar precios históricos de oportunidades.
+- [x] Listar productos.
+- [x] Crear productos.
+- [x] Editar productos.
+- [x] Desactivar productos.
+- [x] Validar precios.
+- [x] Gestionar stock.
+- [x] Evitar stock negativo.
+- [x] Conservar precios históricos de oportunidades.
 
 **Pruebas:** Validaciones, productos inactivos y conservación de precios.
+**Estado:** terminada. Spec `docs/specs/A3-catalogo.md`; evidencia en `docs/verificacion.md` (A3).
 
 ### A4 — Clientes y asignaciones
 **Rama:** `a/clientes`
 **Requisitos:** L4, R2, R3, R4.
 **Tareas:**
 
-- [ ] Listar clientes.
-- [ ] Buscar por nombre y NIT.
-- [ ] Crear y editar clientes.
-- [ ] Normalizar NIT.
-- [ ] Normalizar teléfonos.
-- [ ] Asignar clientes.
-- [ ] Reasignar clientes.
-- [ ] Liberar clientes.
-- [ ] Respetar la cartera máxima.
-- [ ] Aplicar las decisiones aprobadas sobre oportunidades y actividades.
+- [x] Listar clientes.
+- [x] Buscar por nombre y NIT.
+- [x] Crear y editar clientes.
+- [x] Normalizar NIT.
+- [x] Normalizar teléfonos.
+- [x] Asignar clientes.
+- [x] Reasignar clientes.
+- [x] Liberar clientes.
+- [x] Respetar la cartera máxima.
+- [x] Aplicar las decisiones aprobadas sobre oportunidades y actividades.
 
 **Pruebas:** Permisos, duplicados, asignaciones y límite de cartera.
+**Estado:** terminada. Spec `docs/specs/A4-clientes.md`; evidencia en `docs/verificacion.md` (A4). Aplica D2, D3 y D4, decididas en `spec-v1.2`.
 
 ### A5 — Equipos, oportunidades y reportes
-**Ramas:** `a/equipos`, `a/reportes`
+**Rama:** `a/reportes` (antes `a/equipos` y `a/reportes`; se juntaron en una, ver sección 14)
 **Requisitos:** L5, L6 y R7.
 **Tareas:**
 
-- [ ] Crear vista de equipo del supervisor.
-- [ ] Mostrar cartera por vendedor.
-- [ ] Mostrar oportunidades según permisos.
-- [ ] Implementar filtros por vendedor y etapa.
-- [ ] Mostrar oportunidades en modo solo lectura.
-- [ ] Calcular ventas mensuales.
-- [ ] Calcular pronóstico.
-- [ ] Crear reportes por vendedor y producto.
-- [ ] Aplicar zona horaria de Guatemala.
-- [ ] Verificar cifras oficiales.
+- [x] Crear vista de equipo del supervisor.
+- [x] Mostrar cartera por vendedor.
+- [x] Mostrar oportunidades según permisos.
+- [x] Implementar filtros por vendedor y etapa.
+- [x] Mostrar oportunidades en modo solo lectura.
+- [x] Calcular ventas mensuales.
+- [x] Calcular pronóstico.
+- [x] Crear reportes por vendedor y producto.
+- [x] Aplicar zona horaria de Guatemala.
+- [x] Verificar cifras oficiales.
 
 **Pruebas:** Acceso por equipo y cálculos contra VerificacionSeeder.
+**Estado:** terminada. Spec `docs/specs/A5-equipos-reportes.md`; evidencia en `docs/verificacion.md` (A5).
 
 ### A6 — Resumen mensual para API y SPA
 **Rama:** `a/resumen`
 **Requisitos:** A6 y F5.
 **Tareas:**
 
-- [ ] Implementar `GET /api/reportes/resumen`.
-- [ ] Utilizar SQL parametrizado.
-- [ ] Reutilizar las reglas de cálculo del panel.
-- [ ] Devolver montos como números.
-- [ ] Crear `frontend/js/vistas/resumen.js`.
-- [ ] Integrar la vista con el router de la SPA.
-- [ ] Mostrar selector de mes.
-- [ ] Verificar cifras de control.
+- [x] Implementar `GET /api/reportes/resumen`.
+- [x] Utilizar SQL parametrizado.
+- [x] Reutilizar las reglas de cálculo del panel.
+- [x] Devolver montos como números.
+- [x] Crear `frontend/js/vistas/resumen.js`.
+- [x] Integrar la vista con el router de la SPA.
+- [x] Mostrar selector de mes.
+- [x] Verificar cifras de control.
 
 **Dependencia:** La Parte B debe tener preparada la infraestructura de la API y la SPA.
 **Pruebas:** Comparación de resultados del panel, API y SPA.
+**Estado:** terminada. Spec `docs/specs/A6-resumen.md`; evidencia en `docs/verificacion.md` (A6). La conexión de la vista en `frontend/js/app.js` se hizo en `dfaed7b`, con autorización de la Parte B. Falta comprobar el resumen en el navegador (I4).
 
 ### A7 — Validación y pruebas del panel
 **Rama:** `a/validacion`
@@ -313,12 +330,20 @@ Verificar estructura, registros y cifras de control.
 - [ ] Registrar evidencias.
 
 **Entrega:** Panel funcional y verificado.
+**Estado:** pendiente. Varias tareas ya están cubiertas por los criterios de cada fase: FormRequest en todos los formularios, mensajes en español con lo escrito conservado (A2-18, A3-13, A4-15) y permisos por rol (A2-12, A3-24, A4-03, A5-10). Falta la revisión final de A7, con la suite completa y su registro.
 
 ## 7. Fases de la Parte B — Express y SPA
 
 Las fases B1–B6 pueden desarrollarse progresivamente.
 
 Cada fase tendrá una spec propia en `docs/specs/`.
+
+**Cómo se marcaron las casillas de B1 a B6.** Las marcó la Parte A el 2026-11-09, a partir de tres evidencias:
+- el código de cada fase, integrado en `main` con sus pull requests (#1 a #7 y #9);
+- `npm test` en `api/`: 489 pruebas, 0 fallidas;
+- `node --test frontend/test/*.test.js`: 150 de 150.
+
+La Parte B debe confirmarlas y registrar su evidencia en `docs/verificacion.md`, donde todavía no hay secciones de B1 a B6. Quedan sin marcar «Documentar resultados» y «Preparar integración final» de B6.
 
 ### B1 — Base de API y validaciones
 
@@ -329,20 +354,20 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 
 **Tareas:**
 
-- [ ] Configurar Express 5.
-- [ ] Preparar `api/src/server.js`.
-- [ ] Preparar `api/src/app.js`.
-- [ ] Configurar CORS.
-- [ ] Configurar pool mysql2/promise.
-- [ ] Crear función para transacciones.
-- [ ] Crear errores HTTP.
-- [ ] Crear manejador global de errores.
-- [ ] Preparar validaciones de NIT.
-- [ ] Preparar validaciones de teléfono.
-- [ ] Preparar validaciones de fechas.
-- [ ] Preparar validaciones comunes.
-- [ ] Crear pruebas con node:test.
-- [ ] Reservar el router de reportes para la Parte A.
+- [x] Configurar Express 5.
+- [x] Preparar `api/src/server.js`.
+- [x] Preparar `api/src/app.js`.
+- [x] Configurar CORS.
+- [x] Configurar pool mysql2/promise.
+- [x] Crear función para transacciones.
+- [x] Crear errores HTTP.
+- [x] Crear manejador global de errores.
+- [x] Preparar validaciones de NIT.
+- [x] Preparar validaciones de teléfono.
+- [x] Preparar validaciones de fechas.
+- [x] Preparar validaciones comunes.
+- [x] Crear pruebas con node:test.
+- [x] Reservar el router de reportes para la Parte A.
 
 **Pruebas:**
 - Validación de datos.
@@ -356,29 +381,29 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 
 ### B2 — JWT, middleware y SPA inicial
 
-**Ramas:** `b/login-jwt`, `b/spa-base`  
+**Rama:** `b/login-jwt` (la SPA se hizo en la misma rama; ver sección 14)  
 **Spec:** `docs/specs/B2-login.md`
 **Requisitos:** A1, A2, F1, S1, S4, S6.
 **Dependencia:** Integración I1, con users y VerificacionSeeder disponibles.
 
 **Tareas:**
 
-- [ ] Implementar POST /auth/login.
-- [ ] Verificar contraseñas con bcryptjs.
-- [ ] Generar JWT HS256.
-- [ ] Configurar expiración.
-- [ ] Implementar middleware de autenticación.
-- [ ] Volver a consultar el estado del usuario.
-- [ ] Rechazar cuentas desactivadas.
-- [ ] Rechazar roles no autorizados.
-- [ ] Preparar la primera lectura de cartera.
-- [ ] Crear SPA inicial.
-- [ ] Implementar inicio de sesión.
-- [ ] Guardar y eliminar la sesión.
-- [ ] Crear comunicación mediante fetch.
-- [ ] Implementar cierre de sesión.
-- [ ] Preparar navegación.
-- [ ] Preparar estados y manejo de errores.
+- [x] Implementar POST /auth/login.
+- [x] Verificar contraseñas con bcryptjs.
+- [x] Generar JWT HS256.
+- [x] Configurar expiración.
+- [x] Implementar middleware de autenticación.
+- [x] Volver a consultar el estado del usuario.
+- [x] Rechazar cuentas desactivadas.
+- [x] Rechazar roles no autorizados.
+- [x] Preparar la primera lectura de cartera.
+- [x] Crear SPA inicial.
+- [x] Implementar inicio de sesión.
+- [x] Guardar y eliminar la sesión.
+- [x] Crear comunicación mediante fetch.
+- [x] Implementar cierre de sesión.
+- [x] Preparar navegación.
+- [x] Preparar estados y manejo de errores.
 
 **Pruebas:**
 - Login correcto.
@@ -396,30 +421,30 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 
 ### B3 — Clientes y cartera
 
-**Ramas:** `b/clientes`, `b/spa-cartera`  
+**Rama:** `b/clientes` (la SPA se hizo en la misma rama)  
 **Spec:** `docs/specs/B3-clientes.md`
 **Requisitos:** A3, F2, R2, R3, R4, S3, S5, S8.
 **Dependencia:** B2 y esquema de clientes disponible.
 
 **Tareas:**
 
-- [ ] Implementar GET /clientes.
-- [ ] Implementar POST /clientes.
-- [ ] Implementar GET /clientes/disponibles.
-- [ ] Implementar GET /clientes/:id.
-- [ ] Implementar PATCH /clientes/:id.
-- [ ] Implementar POST /clientes/:id/tomar.
-- [ ] Validar NIT y teléfono.
-- [ ] Evitar clientes duplicados.
-- [ ] Aplicar máximo de diez clientes.
-- [ ] Proteger registros ajenos.
-- [ ] Implementar operaciones atómicas.
-- [ ] Crear vista de cartera.
-- [ ] Crear búsqueda.
-- [ ] Crear formularios de alta y edición.
-- [ ] Mostrar clientes disponibles.
-- [ ] Implementar acción tomar.
-- [ ] Mostrar errores junto a los campos.
+- [x] Implementar GET /clientes.
+- [x] Implementar POST /clientes.
+- [x] Implementar GET /clientes/disponibles.
+- [x] Implementar GET /clientes/:id.
+- [x] Implementar PATCH /clientes/:id.
+- [x] Implementar POST /clientes/:id/tomar.
+- [x] Validar NIT y teléfono.
+- [x] Evitar clientes duplicados.
+- [x] Aplicar máximo de diez clientes.
+- [x] Proteger registros ajenos.
+- [x] Implementar operaciones atómicas.
+- [x] Crear vista de cartera.
+- [x] Crear búsqueda.
+- [x] Crear formularios de alta y edición.
+- [x] Mostrar clientes disponibles.
+- [x] Implementar acción tomar.
+- [x] Mostrar errores junto a los campos.
 
 **Pruebas:**
 
@@ -436,36 +461,36 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 
 ### B4 — Oportunidades, productos y stock
 
-**Ramas:** `b/oportunidades`, `b/spa-embudo`  
+**Rama:** `b/oportunidades` (la SPA se hizo en la misma rama)  
 **Spec:** `docs/specs/B4-oportunidades.md`
 **Requisitos:** A4, F3, R5, R6, S8 y regla propia del sector.
 **Dependencia:** B3 y tablas de oportunidades, productos e historial disponibles.
 
 **Tareas:**
 
-- [ ] Implementar GET /productos.
-- [ ] Implementar GET /oportunidades con filtro por etapa.
-- [ ] Implementar POST /oportunidades.
-- [ ] Implementar GET /oportunidades/:id.
-- [ ] Implementar PATCH /oportunidades/:id.
-- [ ] Implementar PATCH /oportunidades/:id/etapa.
-- [ ] Implementar POST /oportunidades/:id/productos.
-- [ ] Implementar PATCH de cantidad por línea.
-- [ ] Implementar DELETE de línea con respuesta 204.
-- [ ] Copiar precios históricos desde el catálogo.
-- [ ] Calcular subtotales y totales.
-- [ ] Validar transiciones aprobadas.
-- [ ] Registrar historial.
-- [ ] Registrar fecha de cierre.
-- [ ] Validar stock antes de ganar.
-- [ ] Descontar existencias.
-- [ ] Implementar rollback ante fallos.
-- [ ] Proteger cambios simultáneos.
-- [ ] Crear tablero de oportunidades.
-- [ ] Crear detalle de oportunidad.
-- [ ] Crear formularios y acciones para productos.
-- [ ] Mostrar historial.
-- [ ] Mostrar errores de inventario.
+- [x] Implementar GET /productos.
+- [x] Implementar GET /oportunidades con filtro por etapa.
+- [x] Implementar POST /oportunidades.
+- [x] Implementar GET /oportunidades/:id.
+- [x] Implementar PATCH /oportunidades/:id.
+- [x] Implementar PATCH /oportunidades/:id/etapa.
+- [x] Implementar POST /oportunidades/:id/productos.
+- [x] Implementar PATCH de cantidad por línea.
+- [x] Implementar DELETE de línea con respuesta 204.
+- [x] Copiar precios históricos desde el catálogo.
+- [x] Calcular subtotales y totales.
+- [x] Validar transiciones aprobadas.
+- [x] Registrar historial.
+- [x] Registrar fecha de cierre.
+- [x] Validar stock antes de ganar.
+- [x] Descontar existencias.
+- [x] Implementar rollback ante fallos.
+- [x] Proteger cambios simultáneos.
+- [x] Crear tablero de oportunidades.
+- [x] Crear detalle de oportunidad.
+- [x] Crear formularios y acciones para productos.
+- [x] Mostrar historial.
+- [x] Mostrar errores de inventario.
 
 **Pruebas:**
 - Oportunidad creada en prospecto.
@@ -484,24 +509,24 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 
 ### B5 — Actividades y seguimiento
 
-**Ramas:** `b/actividades`, `b/spa-actividades`  
+**Rama:** `b/actividades` (la SPA se hizo en la misma rama)  
 **Spec:** `docs/specs/B5-actividades.md`
 **Requisitos:** A5, F4, R2 y R8.
 **Dependencia:** B3.
 
 **Tareas:**
-- [ ] Implementar GET /actividades.
-- [ ] Implementar POST /clientes/:id/actividades.
-- [ ] Implementar PATCH /actividades/:id.
-- [ ] Filtrar pendientes y completadas.
-- [ ] Calcular actividades vencidas.
-- [ ] Validar fechas con zona horaria.
-- [ ] Devolver fechas ISO UTC.
-- [ ] Proteger actividades de otros vendedores.
-- [ ] Crear vista de actividades.
-- [ ] Crear formulario de actividad.
-- [ ] Mostrar fechas en hora de Guatemala.
-- [ ] Permitir completar actividades.
+- [x] Implementar GET /actividades.
+- [x] Implementar POST /clientes/:id/actividades.
+- [x] Implementar PATCH /actividades/:id.
+- [x] Filtrar pendientes y completadas.
+- [x] Calcular actividades vencidas.
+- [x] Validar fechas con zona horaria.
+- [x] Devolver fechas ISO UTC.
+- [x] Proteger actividades de otros vendedores.
+- [x] Crear vista de actividades.
+- [x] Crear formulario de actividad.
+- [x] Mostrar fechas en hora de Guatemala.
+- [x] Permitir completar actividades.
 
 **Pruebas:**
 - Crear actividad válida.
@@ -521,20 +546,20 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 **Dependencia:** B1–B5 implementadas.
 
 **Tareas:**
-- [ ] Revisar todos los endpoints.
-- [ ] Ejecutar pruebas node:test.
-- [ ] Preparar colección Postman.
-- [ ] Agregar casos de error.
-- [ ] Implementar script de concurrencia.
-- [ ] Comprobar protección de datos.
-- [ ] Comprobar SQL parametrizado.
-- [ ] Comprobar CORS.
-- [ ] Comprobar JWT.
-- [ ] Comprobar XSS.
-- [ ] Revisar interfaz de 375 píxeles.
-- [ ] Mostrar indicadores de carga.
-- [ ] Manejar desconexión de API.
-- [ ] Verificar los códigos HTTP exactos.
+- [x] Revisar todos los endpoints.
+- [x] Ejecutar pruebas node:test.
+- [x] Preparar colección Postman.
+- [x] Agregar casos de error.
+- [x] Implementar script de concurrencia.
+- [x] Comprobar protección de datos.
+- [x] Comprobar SQL parametrizado.
+- [x] Comprobar CORS.
+- [x] Comprobar JWT.
+- [x] Comprobar XSS.
+- [x] Revisar interfaz de 375 píxeles.
+- [x] Mostrar indicadores de carga.
+- [x] Manejar desconexión de API.
+- [x] Verificar los códigos HTTP exactos.
 - [ ] Documentar resultados.
 - [ ] Preparar integración final.
 
@@ -554,6 +579,7 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 - Probar el inicio de sesión del vendedor cuando B2 esté implementada.
 
 **Resultado esperado:** Laravel y Express usan el mismo esquema.
+**Estado:** cumplida. Con A1, `npm run test:bd` ejecutó contra MySQL las pruebas de integración que antes se omitían (`docs/verificacion.md`, A1).
 
 ### I2 — Primera petición real desde la SPA
 
@@ -566,6 +592,7 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 - El nuevo cliente aparece.
 
 **Resultado esperado:** La información se comparte correctamente entre ambos componentes.
+**Estado:** cumplida a nivel de API; falta la prueba en la SPA. El panel asignó y reasignó clientes, y `GET /api/clientes`, `GET /api/actividades` y `GET /api/oportunidades` lo reflejaron (`docs/verificacion.md`, A4, nota 1). Falta repetirlo viendo la cartera en la SPA del navegador.
 
 ### I3 — Primera venta integrada
 
@@ -580,6 +607,9 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 - Confirmar que la venta se contabilizó.
 
 **Resultado esperado:** La venta creada mediante la SPA aparece correctamente en el panel.
+**Estado:** parcial.
+- **Probado con la API:** la op. 4 se ganó con `PATCH /api/oportunidades/4/etapa` y apareció en el reporte del panel (A5-15; `docs/verificacion.md`, A5, nota 1). También se probó el descuento de stock en A3-22.
+- **Falta:** hacer el recorrido completo desde la SPA (crear, agregar productos, avanzar y ganar) con un producto con stock controlado.
 
 ### I4 — Resumen mensual de la SPA
 
@@ -591,12 +621,21 @@ Cada fase tendrá una spec propia en `docs/specs/`.
 - Verificar los meses y la zona horaria.
 
 **Resultado esperado:** Panel, API y SPA muestran cifras consistentes.
+**Estado:** cumplida entre el panel y la API; falta la SPA en el navegador.
+- **Panel y API:** coinciden en vivo en los cinco casos comparados (`docs/verificacion.md`, A6, nota 1).
+- **SPA:** la vista está probada con `node:test` (también con otras zonas horarias) y conectada en `app.js` desde `dfaed7b`. Falta comprobarla en el navegador.
 
 ## 9. Organización de las specs
-Cada fase de la Parte B tendrá una especificación independiente.
+Cada fase de ambas partes tiene una especificación independiente (cambio de plan: al principio solo las tenía la Parte B; ver sección 14).
 
 | Fase | Archivo |
 |---|---|
+| A1 | docs/specs/A1-migraciones.md |
+| A2 | docs/specs/A2-cuentas.md |
+| A3 | docs/specs/A3-catalogo.md |
+| A4 | docs/specs/A4-clientes.md |
+| A5 | docs/specs/A5-equipos-reportes.md |
+| A6 | docs/specs/A6-resumen.md |
 | B1 | docs/specs/B1-base.md |
 | B2 | docs/specs/B2-login.md |
 | B3 | docs/specs/B3-clientes.md |
@@ -671,16 +710,18 @@ Se utilizarán ramas independientes por tarea:
 - `a/cuentas`
 - `a/catalogo`
 - `a/clientes`
-- `a/reportes`
+- `a/reportes` (toda A5)
+- `a/resumen` (A6)
+- `a/readme` y `a/spec-v1.2` (documentación compartida)
 - `b/base-api`
 - `b/login-jwt`
-- `b/spa-base`
 - `b/clientes`
-- `b/spa-cartera`
 - `b/oportunidades`
-- `b/spa-embudo`
 - `b/actividades`
 - `b/calidad`
+- `b/restricciones-check`
+
+Las ramas `b/spa-*` y `a/equipos` del plan original no se usaron (sección 14).
 
 ### 11.2 Commits
 
@@ -745,5 +786,22 @@ Cada caso incluirá:
 - Método de detección.
 - Corrección.
 - Commit correspondiente.
-Los incidentes se documentarán en `docs/verificacion.md`.
+Los incidentes se documentarán en `docs/verificacion.md`. Mientras se trabaja, se llevan en `docs/bitacora-ia.md` (IA-01 a IA-16); antes de la entrega deben trasladarse a `docs/verificacion.md` o enlazarse desde allí.
 No se inventarán resultados ni incidentes.
+
+## 14. Cambios al plan
+
+Diferencias entre el plan original y cómo se hizo el trabajo, en orden cronológico.
+
+| Fecha | Cambio | Motivo |
+|---|---|---|
+| 2026-11-08 | Cada fase de la Parte B hizo su API y su SPA en una sola rama (`b/login-jwt`, `b/clientes`, `b/oportunidades`, `b/actividades`), sin las ramas `b/spa-*` | La vista y su endpoint se prueban juntos |
+| 2026-11-08 | La Parte A también escribe una spec por fase (A1 a A6, en `docs/specs/`), con criterios Dado/Cuando/Entonces y decisiones propias (DA*, P*) | Mismo procedimiento que la Parte B (sección 10) y criterios verificables |
+| 2026-11-08 | Se agregó la base MySQL `crm_belleza_test` para las pruebas de Laravel (`phpunit.xml`), y se dejó de usar SQLite (decisión P8 de A2) | Los CHECK de las migraciones no funcionan en SQLite y las pruebas no deben tocar `crm_belleza` (IA-15) |
+| 2026-11-08 | Rama `b/restricciones-check` (`9e37ed2`, PR #9), fuera del plan: ajuste en `api/src/middleware/errores.js` y sus pruebas | Ajustar a las restricciones CHECK reales de las migraciones de la Parte A la traducción del error 3819 de MySQL a 422 por campo |
+| 2026-11-09 | `spec-v1.1` (`5afb464`): primera línea de D2, D3 y D4 con lo decidido para A4, incluido el mensaje de D3 | A4 necesitaba esas decisiones |
+| 2026-11-09 | `spec-v1.2` (`5783303`): redacción final de D2, D3 y D4 como decididas, con las actividades que siguen al cliente en D2 | `spec-v1.1` había dejado las tres en «Propuesta» |
+| 2026-11-09 | A5 se hizo en una sola rama, `a/reportes`, en lugar de `a/equipos` y `a/reportes` | Las tres pantallas (equipo, oportunidades y reportes) usan el mismo servicio de cifras (`App\Services\ReporteVentas`) |
+| 2026-11-09 | A5 incluye el detalle de oportunidad en solo lectura y el pronóstico por producto (P2 y P4 de A5) | L6 pide pronósticos por producto, y el detalle es donde se ve el precio guardado |
+| 2026-11-09 | A6 agregó a la Parte A `api/src/servicios/reportes.js`, `frontend/js/acciones-resumen.js` y sus pruebas, autorizados por la Parte B en los hooks (`4862d6a`) | Separar el cálculo de la ruta y el estado de la vista, sin modificar `estado.js` ni `api.js` |
+| 2026-11-09 | La Parte A montó `/api/reportes` en `api/src/app.js` (`603fa20`), y la vista del resumen se conectó en `frontend/js/app.js` con autorización de la Parte B (`dfaed7b`) | P2 de A6 |
