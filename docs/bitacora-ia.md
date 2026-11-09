@@ -33,6 +33,7 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-13 | 2026-11-08 | B | B5 · actividades (API, simulación y SPA) | Corregido | `2865d43` (API) y `a9f8bd4` (SPA) |
 | IA-14 | 2026-11-08 | B | B6 · SPA a 375 px, sesión, Postman, script de concurrencia y pruebas | Corregido | Pendiente (sin commit) |
 | IA-15 | 2026-11-08 | A | A1 · migraciones y pruebas de Laravel (`phpunit.xml`) | Corregido en A2 | `8e0cb10`, `150bedf` |
+| IA-16 | 2026-11-09 | A | A4 · asignación de clientes (DA4-7), vista de edición y pruebas | Corregido | `949ba19`, `feb57ba`, `fa24466` |
 
 ---
 
@@ -535,3 +536,38 @@ Al preparar la prueba de A1 para `laravel/tests/`, el agente revisó `phpunit.xm
 - `php artisan test`: 67 pruebas, 54 superadas, 0 fallidas y 13 omitidas (las de A1, que siguen siendo opt-in con `PRUEBAS_MYSQL=1`).
 - `PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, ya sobre `crm_belleza_test`.
 - Commit: `150bedf` test(a2): base de pruebas MySQL y pruebas de cuentas y roles.
+
+---
+
+## IA-16 — Errores del agente en la fase A4 (clientes y asignaciones)
+
+**1. El vendedor «visto» se leía al enviar el formulario, no al abrirlo (DA4-7).**
+- **Propuesta:** en el servicio `AsignacionClientes`, el agente tomaba como dueño anterior del cliente el que leía el binding de la ruta en la petición de guardado, y lo comparaba con el dueño ya bloqueado.
+- **Por qué era incorrecto:** el binding lee la base en el momento del envío. Si Alicia tiene abierto el formulario de un cliente disponible y Valeria lo toma desde la API, al enviar el binding ya lee a Valeria como dueña, la comparación pasa y el panel reasigna el cliente a Diego sin avisar. Es justo lo que prohíbe A4-27. La comparación solo detectaba un cambio en los milisegundos entre el binding y el bloqueo.
+- **Detección:** el propio agente, al escribir la prueba de A4-27, antes de terminar las vistas y antes de cualquier commit de pruebas: un cambio de dueño hecho entre el GET del formulario y el PUT no se podía detectar con ese diseño.
+- **Corrección:** los formularios de asignar y liberar envían oculto `vendedor_actual`, el dueño que mostró la página, con el mismo patrón que `stock_original` de A3. `AsignacionClienteRequest` lo exige y el servicio lo compara con el cliente bloqueado; si no coincide, responde «El cliente cambió mientras usted trabajaba. Recargue la página e inténtelo de nuevo.». La vista nunca rellena ese campo con `old()`.
+- **Verificación:** `A4ClientesTest::test_a4_27_…` y la prueba de punta a punta de `docs/verificacion.md` (A4, nota 2): Valeria toma Café Zunil con `POST /api/clientes/17/tomar` (200) y la asignación del panel se rechaza.
+- **Commit:** `949ba19` fix(clientes): comparar el vendedor que mostró el formulario al asignar y liberar (DA4-7).
+
+**2. Directiva de Blade pegada al texto en la vista de edición.**
+- **Propuesta:** en `resources/views/clientes/edit.blade.php`, el agente escribió `clientes)@unless ($cliente->vendedor->activo), vendedor inactivo@endunless.`.
+- **Por qué era incorrecto:** Blade solo reconoce una directiva si el `@` no va pegado a una letra; `inactivo@endunless` se trata como texto, igual que un correo. El `@unless` quedaba sin cerrar y la vista daba un error de sintaxis de PHP: la página de edición respondía 500 para todos los clientes con vendedor. `php artisan view:cache` no lo detectó, porque compila la plantilla pero no ejecuta el PHP generado.
+- **Detección:** `php artisan test --filter=A4ClientesTest`: A4-03 y A4-27 fallaron con `ParseError: syntax error, unexpected end of file, expecting "elseif" or "else" or "endif"`.
+- **Corrección:** la marca se escribe con una expresión, `{{ $cliente->vendedor->activo ? '' : ', vendedor inactivo' }}`.
+- **Commit:** `feb57ba` fix(clientes): marca de vendedor inactivo en la edición sin directiva pegada al texto.
+
+**3. Pruebas que podían pasar sin comprobar lo que decían.**
+- **Propuesta:** en el primer borrador de `tests/Feature/A4ClientesTest.php`:
+  - A4-16 (texto escapado) no comprobaba el código HTTP.
+  - A4-26 (orden de bloqueos) solo verificaba que el bloqueo de los vendedores fuera la primera lectura «si» encontraba el inicio de la transacción buscando `SAVEPOINT` en `DB::listen`.
+  - Los ayudantes `asignar()` y `liberar()` usaban `$visto ??= …`, que reemplazaba un `null` explícito («se vio disponible») por el dueño actual.
+- **Por qué era incorrecto:**
+  - A4-16 pasó con la vista de edición dando 500 (error 2): la página de error de Laravel también contenía el texto escapado.
+  - `DB::listen` no registra los `SAVEPOINT`, así que la comprobación de la primera lectura nunca se ejecutaba y la prueba pasaba sin decirlo.
+  - Con `??=`, A4-27 enviaba el dueño actual en lugar de «disponible» y la prueba fallaba por un error de la propia prueba, no del código.
+- **Detección:** el fallo de A4-27 llevó a revisar el ayudante; al corregir el error 2, el agente revisó por qué A4-16 había pasado y qué comprobaciones de A4-26 estaban condicionadas.
+- **Corrección:** A4-16 exige `assertOk()`; A4-26 marca el inicio con el evento `TransactionBeginning` y exige que el bloqueo de `users` sea la consulta siguiente, sin condición; los ayudantes usan `false` para «leer el dueño actual» y aceptan `null` como «disponible».
+- **Verificación:** `php artisan test`: 139 pruebas, 126 superadas, 0 fallidas y 13 omitidas (las de A1, opt-in); `A4ClientesTest` 29 de 29.
+- **Commit:** `fa24466` test(a4): pruebas de NIT, teléfono, clientes y asignaciones (las tres correcciones se hicieron antes de este commit, que es el primero de las pruebas).
+
+**Lección.** Una comprobación de concurrencia debe comparar con lo que vio la persona, no con lo que la base dice al recibir la petición; y una prueba que pasa debe fallar si el comportamiento falta: hay que comprobar el código HTTP y no dejar aserciones dentro de un `if`.
