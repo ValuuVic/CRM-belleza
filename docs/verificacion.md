@@ -154,6 +154,84 @@ PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
 
 ---
 
+## A3 — Catálogo de productos (Parte A)
+
+**Spec:** `docs/specs/A3-catalogo.md`
+**Rama:** `a/catalogo`
+**Fecha:** 2026-11-08
+**Commits:** `b97a80b` (spec), `d250e0c` (controlador, validación y rutas), `a294a70` (vistas y navegación), `0345e6e` (pruebas)
+**Entorno:** MySQL 8.4 en Docker (`crm-mysql`), PHP 8.4.0, Laravel 13; API Express de la Parte B para la integración.
+
+### Cómo se ejecutó
+
+```
+cd laravel
+php artisan test
+PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
+```
+
+Integración de punta a punta (notas 1 y 2), con la base de pruebas recién sembrada y los dos servidores apuntando a ella:
+
+```
+cd laravel && DB_DATABASE=crm_belleza_test php artisan migrate:fresh --seeder=VerificacionSeeder --force
+cd laravel && DB_DATABASE=crm_belleza_test php artisan serve --port=8999
+cd api && DB_NAME=crm_belleza_test PORT=3999 node --env-file=.env src/server.js
+```
+
+Las peticiones se hicieron con `curl` (sesión de Alicia en el panel y token de Valeria en la API). Al terminar se volvió a sembrar `crm_belleza_test`.
+
+### Resultado
+
+- `php artisan test`: **94 pruebas, 81 superadas, 0 fallidas, 13 omitidas** (las de A1, opt-in), 518 aserciones. `A3CatalogoTest`: 27 de 27, 197 aserciones.
+- `PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, 126 aserciones, sobre `crm_belleza_test`.
+- `crm_belleza` no cambió: «Plan avanzado» sigue en 2750.50, ningún producto tiene stock y hay 43 registros de historial.
+
+### Matriz de criterios
+
+| Criterio | Prueba | Resultado |
+|---|---|---|
+| A3-01 — Catálogo administrado solo por el administrador | `A3CatalogoTest::test_a3_01_…` (sin sesión → `/login` en 3 rutas; Alicia ve el menú, «Nuevo producto» y «Editar») | Cumple |
+| A3-02 — Lista completa | `A3CatalogoTest::test_a3_02_…` (5 productos, `Q2,750.50`, «Sin control», «Licencia anterior» inactivo) | Cumple |
+| A3-03 — «Sin control» frente a «0 existencias» | `A3CatalogoTest::test_a3_03_…` (lista y campo del formulario: vacío frente a 0) | Cumple |
+| A3-04 — Crear sin control de inventario | `A3CatalogoTest::test_a3_04_…` (activo, 185.00, `stock` NULL) | Cumple |
+| A3-05 — Crear con inventario | `A3CatalogoTest::test_a3_05_…` (0 y 25, no NULL) | Cumple |
+| A3-06 — Editar el stock | `A3CatalogoTest::test_a3_06_…` (NULL → 10 → NULL) | Cumple |
+| A3-07 — Nombre obligatorio y largo máximo | `A3CatalogoTest::test_a3_07_…` (vacío, espacios, 121 rechazados; 120 aceptado) | Cumple |
+| A3-08 — Nombre repetido | `A3CatalogoTest::test_a3_08_…` (mayúsculas, espacio final y «Plan basico» sin acento; al editar; el propio nombre se acepta) | Cumple |
+| A3-09 — El índice único decide el duplicado | `A3CatalogoTest::test_a3_09_…` (2 pruebas: alta y edición) | Cumple; ver nota 3 |
+| A3-10 — Precio inválido | `A3CatalogoTest::test_a3_10_…` (vacío, 0, -5, 10.999, `abc`, 100000000.00) | Cumple |
+| A3-11 — Precio válido en los límites | `A3CatalogoTest::test_a3_11_…` (0.01, 99999999.99, 2750.5 → 2750.50) | Cumple |
+| A3-12 — Stock inválido | `A3CatalogoTest::test_a3_12_…` (-1, 2.5, `abc`, 2147483648) | Cumple |
+| A3-13 — Mensajes y datos conservados | `A3CatalogoTest::test_a3_13_…` (mensajes junto a cada campo; nombre, precio, stock y casilla conservados) | Cumple |
+| A3-14 — Campos fuera del formulario | `A3CatalogoTest::test_a3_14_…` (`id`, `created_at`, `precio_unitario` ignorados) | Cumple |
+| A3-15 — Producto inexistente | `A3CatalogoTest::test_a3_15_…` (GET y PUT → 404) | Cumple |
+| A3-16 — Texto escapado | `A3CatalogoTest::test_a3_16_…` (`<b>Rubor</b>` sale como `&lt;b&gt;`) | Cumple |
+| A3-17 — Desactivar | `A3CatalogoTest::test_a3_17_…` (líneas 2, 6 y 11 intactas) | Cumple; ver nota 1 |
+| A3-18 — Reactivar | `A3CatalogoTest::test_a3_18_…` | Cumple; ver nota 1 |
+| A3-19 — Sin borrado | `A3CatalogoTest::test_a3_19_…` (DELETE → 405; sin acción de borrar) | Cumple |
+| A3-20 — Cambiar el precio no altera las líneas | `A3CatalogoTest::test_a3_20_…` (las 13 líneas idénticas; línea 1 en 2600.00, líneas 5 y 13 en 2750.50) | Cumple; ver nota 1 |
+| A3-21 — Las cifras de control se conservan | `A3CatalogoTest::test_a3_21_…` (Valeria octubre 2 / 9250.00 / 2512.88; noviembre 1 / 3600.00 / 2512.88; cartera 3) | Cumple con SQL; ver nota 4 |
+| A3-22 — El panel no pisa un descuento de la API | `A3CatalogoTest::test_a3_22_…` | Cumple; ver nota 2 |
+| A3-23 — Suite y semilla intactas | `A3CatalogoTest::test_a3_23_…` y la suite completa sin errores | Cumple |
+| A3-24 — Supervisor en solo lectura | `A3CatalogoTest::test_a3_24_…` (Sergio ve la lista sin botones; 403 en crear, editar, POST y PUT) | Cumple |
+| A3-25 — Guardado sin conflicto | `A3CatalogoTest::test_a3_25_…` (10/10 y NULL/NULL se aceptan; NULL frente a 7, 7 frente a NULL y sin `stock_original` se rechazan) | Cumple |
+| A3-26 — Bloqueo durante el guardado | `A3CatalogoTest::test_a3_26_…` (el `SELECT … FOR UPDATE` de `productos` ocurre antes del `UPDATE`) | Cumple; ver nota 3 |
+
+**Nota 1 (A3-17, A3-18, A3-20, integración con la API).** `RefreshDatabase` trabaja dentro de una transacción que la API no ve, así que las pruebas del panel comprueban los datos que lee `GET /api/productos` (`activo = 1`). De punta a punta, con el panel y la API sobre `crm_belleza_test`:
+- Antes: `GET /api/productos` devolvía Instalación, Plan avanzado (2750.5), Plan básico y Soporte anual.
+- Alicia desactivó «Instalación», reactivó «Licencia anterior» y subió «Plan avanzado» a 3000.00 (los tres PUT → 302 a `/productos`).
+- Después: `GET /api/productos` devolvió Licencia anterior (999.99, `stock` null), Plan avanzado (3000), Plan básico y Soporte anual, sin Instalación.
+- `GET /api/oportunidades/1` siguió con la línea 1 de Plan avanzado a `precio_unitario` 2600 (subtotal 5200), la de Instalación a 450 y un total de 5650.
+- Una línea nueva (`POST /api/oportunidades/7/productos`, Plan avanzado × 1) copió el precio nuevo: `precio_unitario` 3000.
+
+**Nota 2 (A3-22 de punta a punta).** Alicia puso 10 existencias a «Plan avanzado» y abrió el formulario (`stock_original` = 10). Valeria ganó la oportunidad 4 en la API (`PATCH /api/oportunidades/4/etapa` → 200) y el stock bajó a 9. Alicia guardó el 10 que tenía en pantalla: el panel respondió «El stock cambió mientras usted editaba (ahora hay 9). Revise y guarde de nuevo.» y `GET /api/productos` siguió mostrando `stock` 9.
+
+**Nota 3 (A3-09, A3-26).** PHPUnit no puede lanzar dos peticiones a la vez ni abrir una segunda conexión que vea la transacción de la prueba. En A3-09, un evento `creating`/`updating` registrado en la prueba inserta el mismo nombre justo antes del guardado y MySQL responde 1062; el panel vuelve al formulario con el error en `nombre`, sin 500. En la edición, esa fila se revierte junto con la transacción del guardado, así que la prueba solo comprueba el error y que el nombre no cambió. A3-26 se comprueba con el registro de consultas, como A2-28.
+
+**Nota 4 (A3-21).** Las cifras se calcularon con la misma consulta de A1-14 (precio guardado en cada línea y rango UTC de octubre en hora de Guatemala). Se repetirán con el reporte del panel (A5) y `GET /api/reportes/resumen` (A6).
+
+---
+
 ## Bitácora de IA
 
 Los casos están en `docs/bitacora-ia.md` (IA-01 a IA-15). Se trasladan o enlazan aquí antes de la entrega.
