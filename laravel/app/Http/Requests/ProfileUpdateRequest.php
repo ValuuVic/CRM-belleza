@@ -2,11 +2,12 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
+/**
+ * Perfil propio: solo el nombre (P4). Cualquier otro campo del cuerpo se ignora (A2-23).
+ */
 class ProfileUpdateRequest extends FormRequest
 {
     /**
@@ -18,14 +19,18 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($this->user()->id),
-            ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Escriba su nombre.',
+            'name.string' => 'Escriba su nombre.',
+            'name.max' => 'El nombre no puede tener más de 255 caracteres.',
         ];
     }
 }
