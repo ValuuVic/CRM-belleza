@@ -998,19 +998,19 @@ Estados:
 **Estado:** Decidida e implementada (B4).
 
 ### D2. Reasignación de clientes
-**Propuesta:** las oportunidades cerradas conservan el vendedor que realizó la venta. Las oportunidades abiertas y sus actividades se transfieren al nuevo responsable; las actividades históricas conservan el identificador del usuario que las registró cuando corresponda.
+**Decidida:** las oportunidades cerradas se quedan con su vendedor, porque es el crédito de la venta. Las abiertas pasan al nuevo vendedor. Las actividades no se tocan: la API de B ya las muestra según el dueño actual del cliente, no según actividades.vendedor_id (que es “quién la registró”). Al reasignar, el nuevo vendedor las ve solas y el anterior deja de verlas. Hay que cambiar la redacción de D2, que dice que las actividades “se transfieren”, para que coincida.
 **Alternativa descartada:** eliminar el historial o transferir el crédito de las ventas cerradas al nuevo vendedor.
 **Motivo:** conservar la trazabilidad comercial y las cifras de ventas por vendedor.
 **Estado:** Propuesta; la deciden ambas integrantes y la implementa la Parte A (L4).
 
 ### D3. Liberación de clientes
-**Propuesta:** no permitir liberar un cliente que tenga oportunidades abiertas hasta resolverlas o reasignarlas conforme al proceso aprobado.
+**Decidida:** no se libera un cliente con oportunidades abiertas. Mensaje: “Cierre o reasigne las oportunidades abiertas antes de liberar al cliente."
 **Alternativa descartada:** liberar clientes con oportunidades abiertas sin responsable.
 **Motivo:** evitar oportunidades comerciales sin seguimiento.
 **Estado:** Propuesta; la deciden ambas integrantes y la implementa la Parte A (L4).
 
 ### D4. Desactivación de vendedores
-**Propuesta:** al desactivar una cuenta, su acceso se bloquea inmediatamente en ambas puertas; sus clientes quedan asignados y visibles para la administración hasta que se reasignen según el procedimiento aprobado.
+**Decidida:** sus clientes y oportunidades abiertas se quedan con él hasta que el supervisor o el admin reasigne el cliente. Al reasignar se aplica D2. La lista de clientes del panel lo marca como “vendedor inactivo”.
 **Alternativa descartada:** eliminar automáticamente los clientes, las oportunidades o los historiales.
 **Motivo:** conservar los datos comerciales.
 **Estado:** Propuesta; falta definir qué pasa con las oportunidades abiertas. El bloqueo inmediato ya está implementado en la API (B2 y B3).
