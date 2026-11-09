@@ -6,12 +6,21 @@ import { ErrorHttp } from '../utils/errores.js';
 
 /**
  * Restricciones CHECK de MySQL → campo del contrato, para responder 3819 como
- * 422 { "errores": { campo } }. Empieza vacía a propósito: los nombres reales los
- * definen las migraciones de la Parte A y se añadirán cuando existan.
- * Las restricciones que no estén aquí se informan en el campo "general".
+ * 422 { "errores": { campo } }. Los nombres son los de las migraciones de la Parte A
+ * (laravel/database/migrations/2026_11_08_*). Solo se registran los CHECK de campos que
+ * llegan en el cuerpo de una petición; los otros siete (chk_productos_precio,
+ * chk_productos_stock, chk_oportunidad_productos_precio, chk_oportunidades_cierre,
+ * chk_historial_etapas_etapa_anterior, chk_historial_etapas_etapa_nueva y chk_users_rol)
+ * protegen valores que arma la propia API y se informan en el campo "general".
  * @type {Record<string, string>}
  */
-export const RESTRICCIONES_A_CAMPOS = {};
+export const RESTRICCIONES_A_CAMPOS = {
+  chk_clientes_telefono: 'telefono',
+  chk_actividades_tipo: 'tipo',
+  chk_oportunidad_productos_cantidad: 'cantidad',
+  chk_oportunidades_etapa: 'etapa',
+  chk_oportunidades_motivo: 'motivo_perdida',
+};
 
 const MENSAJE_500 = 'Error interno del servidor';
 
