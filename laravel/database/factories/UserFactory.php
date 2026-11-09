@@ -30,7 +30,45 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            // Por omisión, como en la base: vendedor activo. Las pruebas del panel piden el rol.
+            'rol' => 'vendedor',
+            'supervisor_id' => null,
+            'activo' => true,
         ];
+    }
+
+    public function administrador(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'administrador',
+            'supervisor_id' => null,
+        ]);
+    }
+
+    public function supervisor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'supervisor',
+            'supervisor_id' => null,
+        ]);
+    }
+
+    /**
+     * Vendedor del equipo de $supervisor.
+     */
+    public function vendedor(User $supervisor): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'rol' => 'vendedor',
+            'supervisor_id' => $supervisor->id,
+        ]);
+    }
+
+    public function inactivo(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'activo' => false,
+        ]);
     }
 
     /**

@@ -20,9 +20,9 @@ use Tests\TestCase;
  * Se omite salvo que se active a propósito, porque ejecuta migrate:fresh sobre la conexión
  * configurada y la deja cargada solo con VerificacionSeeder:
  *
- *   PRUEBAS_MYSQL=1 DB_CONNECTION=mysql DB_DATABASE=<base> php artisan test --filter=A1EsquemaSemillaTest
+ *   PRUEBAS_MYSQL=1 php artisan test --filter=A1EsquemaSemillaTest
  *
- * (phpunit.xml fija DB_DATABASE=:memory:, por eso hay que indicar la base de MySQL.)
+ * (phpunit.xml apunta a crm_belleza_test desde A2; la base de desarrollo no se toca.)
  *
  * Las pruebas que escriben lo hacen dentro de una transacción que se revierte.
  */

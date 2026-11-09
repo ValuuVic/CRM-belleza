@@ -6,13 +6,16 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Perfil de Breeze adaptado a A2: sin «Eliminar cuenta» (A2-02) y solo el nombre editable (A2-23, P4).
+ */
 class ProfileTest extends TestCase
 {
     use RefreshDatabase;
 
     public function test_profile_page_is_displayed(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->administrador()->create();
 
         $response = $this
             ->actingAs($user)
@@ -21,49 +24,83 @@ class ProfileTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_profile_information_can_be_updated(): void
+    /**
+     * A2-02: el perfil no muestra el formulario de borrado y sí el cambio de contraseña.
+     */
+    public function test_profile_page_has_no_delete_account_form(): void
     {
-        $user = User::factory()->create();
+        $alicia = User::find(1);
+
+        $this->actingAs($alicia)->get('/profile')
+            ->assertOk()
+            ->assertSee($alicia->email)
+            ->assertSee(route('password.update'), false)
+            ->assertDontSee('Delete Account')
+            ->assertDontSee('userDeletion');
+    }
+
+    public function test_profile_name_can_be_updated(): void
+    {
+        $user = User::factory()->administrador()->create();
 
         $response = $this
             ->actingAs($user)
             ->patch('/profile', [
-                'name' => 'Test User',
-                'email' => 'test@example.com',
+                'name' => 'Nombre Nuevo',
             ]);
 
         $response
             ->assertSessionHasNoErrors()
             ->assertRedirect('/profile');
 
-        $user->refresh();
-
-        $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertSame('Nombre Nuevo', $user->refresh()->name);
     }
 
-    public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
+    /**
+     * A2-23: el correo, el rol, el estado y el supervisor del cuerpo se ignoran.
+     * Antes la prueba de Breeze comprobaba que el correo sí cambiaba.
+     */
+    public function test_protected_fields_are_ignored(): void
     {
-        $user = User::factory()->create();
+        $sergio = User::find(2);
 
         $response = $this
-            ->actingAs($user)
+            ->actingAs($sergio)
             ->patch('/profile', [
-                'name' => 'Test User',
-                'email' => $user->email,
+                'name' => 'Sergio R.',
+                'email' => 'otro@crm.test',
+                'rol' => 'administrador',
+                'activo' => false,
+                'supervisor_id' => 3,
             ]);
 
         $response
             ->assertSessionHasNoErrors()
             ->assertRedirect('/profile');
 
-        $this->assertNotNull($user->refresh()->email_verified_at);
+        $sergio->refresh();
+        $this->assertSame('Sergio R.', $sergio->name);
+        $this->assertSame('sergio@crm.test', $sergio->email);
+        $this->assertSame('supervisor', $sergio->rol);
+        $this->assertTrue($sergio->activo);
+        $this->assertNull($sergio->supervisor_id);
     }
 
-    public function test_user_can_delete_their_account(): void
+    public function test_profile_name_is_required(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->administrador()->create();
+
+        $this->actingAs($user)->from('/profile')->patch('/profile', ['name' => ''])
+            ->assertSessionHasErrors(['name' => 'Escriba su nombre.'])
+            ->assertRedirect('/profile');
+    }
+
+    /**
+     * A2-02: las cuentas no se borran. Antes la prueba de Breeze comprobaba que se borraba.
+     */
+    public function test_user_can_not_delete_their_account(): void
+    {
+        $user = User::factory()->administrador()->create();
 
         $response = $this
             ->actingAs($user)
@@ -71,29 +108,8 @@ class ProfileTest extends TestCase
                 'password' => 'password',
             ]);
 
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/');
-
-        $this->assertGuest();
-        $this->assertNull($user->fresh());
-    }
-
-    public function test_correct_password_must_be_provided_to_delete_account(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this
-            ->actingAs($user)
-            ->from('/profile')
-            ->delete('/profile', [
-                'password' => 'wrong-password',
-            ]);
-
-        $response
-            ->assertSessionHasErrorsIn('userDeletion', 'password')
-            ->assertRedirect('/profile');
-
+        $response->assertMethodNotAllowed();
+        $this->assertAuthenticated();
         $this->assertNotNull($user->fresh());
     }
 }

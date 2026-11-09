@@ -2,72 +2,49 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
+/**
+ * A2-25 — Sin recuperación de contraseña por correo (P3). Antes comprobaba el flujo de Breeze; ahora
+ * comprueba que no existe: una contraseña olvidada la cambia el administrador desde «Cuentas».
+ */
 class PasswordResetTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_reset_password_link_screen_can_be_rendered(): void
+    public function test_reset_password_link_screen_does_not_exist(): void
     {
-        $response = $this->get('/forgot-password');
-
-        $response->assertStatus(200);
+        $this->get('/forgot-password')->assertNotFound();
+        $this->post('/forgot-password', ['email' => 'valeria@crm.test'])->assertNotFound();
+        $this->assertFalse(Route::has('password.request'));
+        $this->assertFalse(Route::has('password.email'));
     }
 
-    public function test_reset_password_link_can_be_requested(): void
+    public function test_reset_password_screen_does_not_exist(): void
     {
-        Notification::fake();
-
-        $user = User::factory()->create();
-
-        $this->post('/forgot-password', ['email' => $user->email]);
-
-        Notification::assertSentTo($user, ResetPassword::class);
+        $this->get('/reset-password/un-token')->assertNotFound();
+        $this->post('/reset-password', [
+            'token' => 'un-token',
+            'email' => 'valeria@crm.test',
+            'password' => 'clave-de-prueba',
+            'password_confirmation' => 'clave-de-prueba',
+        ])->assertNotFound();
+        $this->assertFalse(Route::has('password.reset'));
+        $this->assertFalse(Route::has('password.store'));
     }
 
-    public function test_reset_password_screen_can_be_rendered(): void
+    public function test_controllers_and_views_were_removed(): void
     {
-        Notification::fake();
-
-        $user = User::factory()->create();
-
-        $this->post('/forgot-password', ['email' => $user->email]);
-
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
-            $response = $this->get('/reset-password/'.$notification->token);
-
-            $response->assertStatus(200);
-
-            return true;
-        });
+        $this->assertFalse(class_exists('App\Http\Controllers\Auth\PasswordResetLinkController'));
+        $this->assertFalse(class_exists('App\Http\Controllers\Auth\NewPasswordController'));
+        $this->assertFalse(view()->exists('auth.forgot-password'));
+        $this->assertFalse(view()->exists('auth.reset-password'));
     }
 
-    public function test_password_can_be_reset_with_valid_token(): void
+    public function test_login_has_no_forgot_password_link(): void
     {
-        Notification::fake();
-
-        $user = User::factory()->create();
-
-        $this->post('/forgot-password', ['email' => $user->email]);
-
-        Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
-            $response = $this->post('/reset-password', [
-                'token' => $notification->token,
-                'email' => $user->email,
-                'password' => 'password',
-                'password_confirmation' => 'password',
-            ]);
-
-            $response
-                ->assertSessionHasNoErrors()
-                ->assertRedirect(route('login'));
-
-            return true;
-        });
+        $this->get('/login')->assertOk()->assertDontSee('forgot-password')->assertDontSee('Forgot your password?');
     }
 }
