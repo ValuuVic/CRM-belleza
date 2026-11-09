@@ -31,6 +31,7 @@ Resultado desde el repositorio: 30 pruebas, 30 superadas y 0 fallidas.
 | IA-11 | 2026-11-08 | B | B4 · rutas, pruebas de concurrencia y SPA de oportunidades | Corregido | Pendiente (sin commit) |
 | IA-12 | 2026-11-08 | B | `docs/especificacion.md` y `api/test/integracion-b3.test.js` (lectura del enunciado) | Corregido | Pendiente (sin commit) |
 | IA-13 | 2026-11-08 | B | B5 · actividades (API, simulación y SPA) | Corregido | Pendiente (sin commit) |
+| IA-14 | 2026-11-08 | A | A1 · migraciones y pruebas de Laravel (`phpunit.xml`) | Documentado; corrección pendiente | `8e0cb10` |
 
 ---
 
@@ -445,3 +446,29 @@ El propio agente desconfió del resultado porque contradecía las cifras de cont
 - En `.claude\hooks\proteger-archivos.mjs` se importo `estaVersionado` y se modifico el bloque `//2. Migraciones` para aceptar las nuevas
 
 **Commit.** `a1e72e1` fix(hooks): permitir a la Parte A crear migraciones nuevas
+
+---
+
+## IA-14 — A1 dada por verificada sin correr las pruebas de Laravel
+
+**Propuesta del agente.**
+Al terminar A1 (migraciones, modelos y `VerificacionSeeder`), el agente informó que la fase estaba verificada. Se basó en su propio script contra MySQL (47 de 47) y en `npm run test:bd` de la API (397 superadas, 0 fallidas), pero no ejecutó `php artisan test`.
+
+**Por qué era incorrecto.**
+`laravel/phpunit.xml` usa SQLite en memoria (`DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`). Las migraciones nuevas agregan los CHECK con `ALTER TABLE … ADD CONSTRAINT … CHECK`, que SQLite no admite. Toda prueba que migra la base falla en `2026_11_08_000001_add_rol_supervisor_activo_to_users_table.php`. Resultado: 25 pruebas, 2 superadas y 23 con error (todas las de Breeze que usan la base). Además, el CLAUDE.md del proyecto pide decir cómo probar cada tarea; el agente indicó cómo verificar A1, pero no detectó que había roto la suite existente.
+
+**Cómo se detectó.**
+Al preparar la prueba de A1 para `laravel/tests/`, el agente revisó `phpunit.xml`, vio que la conexión de pruebas era SQLite y ejecutó `php artisan test`. Mensaje: `SQLSTATE[HY000]: General error: 1 near "CONSTRAINT": syntax error (Connection: sqlite …)`.
+
+**Corrección.**
+- Por decisión de la Parte A, por ahora solo se documenta: no se cambian `phpunit.xml` ni las migraciones ya confirmadas.
+- La prueba nueva `laravel/tests/Feature/A1EsquemaSemillaTest.php` se omite salvo `PRUEBAS_MYSQL=1` con conexión MySQL, para no fallar sobre SQLite ni borrar `crm_belleza` por accidente.
+- Pendiente: decidir la base de pruebas. Lo recomendado es una base MySQL `crm_belleza_test` en el contenedor y `phpunit.xml` apuntando a ella.
+
+**Lección.** Antes de dar una fase por verificada, hay que correr todas las suites que toca el cambio, no solo las nuevas; un cambio de esquema afecta a todas las pruebas que migran la base.
+
+**Verificación.**
+- `php artisan test`: 38 pruebas: 2 superadas, 23 con error (SQLite) y 13 omitidas (A1, sin MySQL).
+- `PRUEBAS_MYSQL=1 DB_CONNECTION=mysql DB_DATABASE=crm_belleza php artisan test --filter=A1EsquemaSemillaTest`: 13 de 13, 126 aserciones.
+
+**Commit.** `8e0cb10` test(a1): prueba del esquema y la semilla de verificación (la configuración de pruebas sigue pendiente).
