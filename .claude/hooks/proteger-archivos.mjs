@@ -11,6 +11,7 @@ import {
   denegar,
   preguntar,
   continuar,
+  estaVersionado,
 } from './comun.mjs';
 
 const HERRAMIENTAS_ESCRITURA = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
@@ -37,10 +38,11 @@ await ejecutarHook(async (entrada) => {
 
   if (!escribe) return continuar();
 
-  // 2. Migraciones existentes: nunca se modifican.
+  // 2. Migraciones: las versionadas nunca se modifican; la Parte A crea y ajusta las nuevas.
   if (tipo === 'migracion') {
+    if (parteActual(raiz) === 'A' && !estaVersionado(rel, raiz)) return continuar();
     return denegar(
-      `"${rel}" es una migración de Laravel. Las migraciones existentes no se modifican y el esquema es responsabilidad de la Parte A (CLAUDE.md §3).`,
+      `"${rel}" es una migración ya versionada o la sesión no es de la Parte A. Las migraciones existentes no se modifican (CLAUDE.md §3).`,
     );
   }
 
