@@ -40,7 +40,7 @@
 
                 <p class="mt-1 text-sm text-gray-600">
                     @if ($cliente->vendedor)
-                        Asignado a {{ $cliente->vendedor->name }} ({{ $cliente->vendedor->clientes_count }} de {{ $maximo }} clientes)@unless ($cliente->vendedor->activo), vendedor inactivo@endunless.
+                        Asignado a {{ $cliente->vendedor->name }} ({{ $cliente->vendedor->clientes_count }} de {{ $maximo }} clientes{{ $cliente->vendedor->activo ? '' : ', vendedor inactivo' }}).
                         Oportunidades abiertas: {{ $abiertas }}. Al reasignarlo, pasan al nuevo vendedor; las cerradas conservan a quien hizo la venta.
                     @else
                         Disponible: no tiene vendedor.
